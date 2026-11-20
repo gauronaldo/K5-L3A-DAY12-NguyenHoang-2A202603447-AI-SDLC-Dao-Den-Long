@@ -1,0 +1,58 @@
+name: release-smoke
+
+# Downloads the published release zips and runs the packaged headless + soak binaries on real
+# Linux / macOS runners, comparing headless output byte-for-byte with the source version.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: release tag to test
+        default: v1.0.0
+
+jobs:
+  smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux-x64
+          - os: macos-13          # x86_64 runner (the macOS build is x86_64)
+            asset: macos-x64
+          - os: windows-latest
+            asset: windows-x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download release asset
+        run: |
+          gh release download "$TAG" --pattern "*-${{ matrix.asset }}.zip" --dir rel
+          cd rel && unzip -q *.zip && ls
+      - name: Packaged headless == source headless
+        run: |
+          DIR=$(ls -d rel/DaoDenLong-*/)
+          EXE="${DIR}DaoDenLong-headless"
+          [ -f "$EXE.exe" ] && EXE="$EXE.exe"
+          "$EXE" --seed 1 --night 3 --ticks 3000 --out packaged.jsonl
+          python3 headless.py --seed 1 --night 3 --ticks 3000 --out source.jsonl
+          cmp packaged.jsonl source.jsonl && echo "identical output"
+          set +e; "$EXE" --seed 1 --night 9 --ticks 3 --out x.jsonl; code=$?; set -e
+          test "$code" = "2" && echo "malformed input -> exit 2"
+      - name: Packaged soak
+        run: |
+          DIR=$(ls -d rel/DaoDenLong-*/)
+          EXE="${DIR}DaoDenLong-soak"
+          [ -f "$EXE.exe" ] && EXE="$EXE.exe"
+          "$EXE" --seed 7 --nights 10 --out soak.json
+          python3 -c "import json;d=json.load(open('soak.json'));print(d);assert d['crashes']==0 and d['mem_end_mb']<=1.2*d['mem_start_mb']"
