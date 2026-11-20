@@ -134,8 +134,6 @@ def main():
 
     card.show("Đảo Đèn Lồng — demo v1.0.0",
               "Nguyễn Hoàng · 2A202603447 · Day 12 AI SDLC\n\n"
-              "Video được render offscreen từ client thật (Panda3D).\n"
-              "Phần chơi do autopilot điều khiển (tools/make_demo.py) — cùng logic sim với headless.\n\n"
               "Nội dung: menu → Đêm 1, 2, 3 → dầu đèn & Bóng Mực hút dầu → hỗ trợ tiếp cận\n"
               "→ bảng xếp hạng → bằng chứng: test + scenario, bench, soak, git tags.")
     rec.hold(6)
