@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+*.jsonl.rerun
+/out/
+/build/
+/dist/
+.DS_Store
+*.mov
