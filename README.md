@@ -5,7 +5,7 @@
 
 Đảo Đèn Lồng là game 3D góc nhìn thứ ba. Người chơi điều khiển **Mây**, người giữ đèn nhỏ tuổi đội nón lá. Mây gom **đom đóm** để thắp lại các **Đèn Lồng Lớn** trên ba hòn đảo trong biển mây (Đảo Bến, Đảo Cau, Đảo Chuông), đồng thời né **Bóng Mực** và **Gió Lạc** trong sương đen.
 
-![gameplay](docs/proof/phase-2/screenshots/03_night1_pulse_hud.png)
+![gameplay](docs/proof/phase-3/screenshots/12_fuel_bars_drain.png)
 
 ## Cài đặt và chạy (macOS / Linux, Python ≥ 3.10)
 
@@ -29,17 +29,19 @@ Chế độ headless và test chỉ cần Python, không phải cài thêm gì. 
 | Q (hoặc chuột trái) | Tỏa Sáng: tốn 3 đom đóm, làm choáng và đẩy lùi Bóng Mực trong 5 m |
 | Esc / P | Tạm dừng (Tiếp tục / Chơi lại Đêm / Cài đặt / Về menu) |
 
-## Luật chơi (số chuẩn Ticket-02)
+## Luật chơi (Ticket-02 + Ticket-03)
 
-- Có 3 Đêm: Đảo Bến (5 đèn, 300 s), Đảo Cau (6 đèn, 330 s), Đảo Chuông (7 đèn, 360 s). Thắp hết đèn thì thắng Đêm. Mất hết 3 Ngọn Lửa hoặc trời sáng mà chưa thắp hết thì thua, và được chơi lại Đêm đó.
-- Mây mang tối đa 10 đom đóm. Mỗi đèn cần 10 đom đóm và nhớ số đã nạp. Đèn đã sáng tạo vùng 6 m mà Bóng Mực không vào được.
-- Bóng Mực phát hiện Mây trong 12 m và bỏ đuổi khi cách xa hơn 18 m. Bị Bóng Mực chạm thì mất 1 lửa và rơi một nửa số đom đóm đang mang (nhặt lại được trong 8 s). Rơi khỏi đảo cũng mất 1 lửa và mất hết đom đóm.
-- Gió Lạc (Đêm 2–3) cướp 3 đom đóm khi Mây mang từ 5 trở lên. Bùa Gió giúp chạy 7.2 m/s và lướt không hồi chiêu trong 10 s. Đêm 3 có gió mạnh mỗi 30 s.
-- Điểm: +10 mỗi đom đóm nạp, +100 mỗi đèn, +5 mỗi Bóng Mực trúng Tỏa Sáng. Khi thắng một Đêm được cộng thêm 2 điểm mỗi giây còn lại và 50 điểm mỗi lửa còn lại. Tổng điểm là tổng điểm các Đêm đã thắng.
+- Có 3 Đêm: Đảo Bến (5 đèn, 240 s), Đảo Cau (6 đèn, 270 s), Đảo Chuông (7 đèn, 300 s). Mục tiêu là **giữ đảo sáng tới bình minh**: lúc hết giờ phải còn ít nhất 3/5, 4/6 hoặc 5/7 đèn sáng thì mới thắng. Mất hết 3 Ngọn Lửa thì thua ngay.
+- Đèn cần 10 đom đóm để thắp lần đầu, sau đó chỉ cần 5 để thắp lại. Đèn sáng hao 1 dầu mỗi giây. Đứng gần đèn đang sáng chưa đầy và bấm E để châm dầu (10 dầu cho mỗi đom đóm). Hết dầu thì đèn tắt.
+- Đèn còn từ 30 dầu trở lên mới có vùng an toàn 6 m. Đèn yếu hơn sẽ bị Bóng Mực tới hút dầu (5 mỗi giây).
+- Sức chứa đom đóm = 10 + 2 × số lần thắp thành công, tối đa 20.
+- Bóng Mực phát hiện Mây trong 12 m và bỏ đuổi khi xa hơn 18 m. Bị chạm thì mất 1 lửa và rơi một nửa số đom đóm đang mang. Rơi khỏi đảo cũng mất 1 lửa và mất hết đom đóm. Gió Lạc cướp đom đóm, Bùa Gió giúp tăng tốc, Đêm 3 có gió mạnh.
+- Điểm: mỗi đom đóm nạp vào đèn +5; thắp lần đầu +100; thắp lại +40; mỗi Bóng Mực trúng Tỏa Sáng +5 (+15 nếu nó đang hút dầu). Khi thắng Đêm, mỗi đèn còn sáng được +50 + số dầu còn lại, mỗi lửa còn lại +50.
+- **Cài đặt:** âm lượng, độ nhạy chuột và *Bảng màu dễ phân biệt* (dành cho người mù màu).
 
-Mọi con số nằm ở [lantern/config.py](lantern/config.py) và [game.contract.json](game.contract.json). Các giả định nằm ở [phase-1](docs/notes/phase-1.md) và [phase-2](docs/notes/phase-2.md).
+Mọi con số nằm trong [lantern/config.py](lantern/config.py) và [game.contract.json](game.contract.json). Quyết định thiết kế ghi ở [ADR 0001](docs/adr/0001-lantern-fuel-and-dawn-win.md).
 
-## Headless (Test Contract v1.1)
+## Headless (Test Contract v1.2)
 
 ```bash
 python3 headless.py --seed 1 --night 2 --ticks 1200 --out out.jsonl \
@@ -53,19 +55,19 @@ python3 headless.py --seed 1 --night 2 --ticks 1200 --out out.jsonl \
 ## Kiểm chứng
 
 ```bash
-python3 tools/verify.py --phase phase-2       # unit test + 20 scenario (chạy 2 lần mỗi scenario) → docs/proof/phase-2/
+python3 tools/verify.py --phase phase-3       # unit test + 25 scenario (chạy 2 lần mỗi scenario) → docs/proof/phase-2/
 python3 -m unittest discover -s tests          # chỉ unit test
-python3 tools/screenshot.py --phase phase-2   # ảnh chụp từ client thật (offscreen)
+python3 tools/screenshot.py --phase phase-3   # ảnh chụp từ client thật (offscreen)
 python3 main.py --fps-probe 10 --night 3       # đo FPS ở 1280×720, có autopilot điều khiển
 ```
 
-CI chạy `tools/verify.py` trên Ubuntu và macOS mỗi lần push. Bảng truy vết yêu cầu đến bằng chứng: [Phase 1](docs/proof/phase-1/README.md) · [Phase 2](docs/proof/phase-2/README.md).
+CI chạy `tools/verify.py` trên Ubuntu và macOS mỗi lần push. Bảng truy vết yêu cầu đến bằng chứng: [Phase 1](docs/proof/phase-1/README.md) · [Phase 2](docs/proof/phase-2/README.md) · [Phase 3](docs/proof/phase-3/README.md).
 
 ## Sáng tạo của tôi
 
 Các phần dưới đây chỉ nằm trong client, không chạm tới `lantern/sim.py`. Vì vậy output headless không thay đổi; bằng chứng là 20 scenario vẫn đạt và tất định.
 
-- **Vòng an toàn phát sáng** 6 m quanh đèn đã sáng, giúp người chơi thấy rõ vùng Bóng Mực không vào được ([ảnh](docs/proof/phase-2/screenshots/03_night1_pulse_hud.png)).
+- **Vòng an toàn phát sáng** 6 m quanh đèn có vùng an toàn (tắt khi dầu < 30), giúp người chơi thấy rõ vùng Bóng Mực không vào được ([ảnh](docs/proof/phase-2/screenshots/03_night1_pulse_hud.png)).
 - **Đèn tay của Mây sáng dần** theo số đom đóm đang mang.
 - **La bàn** trên đầu Mây chỉ về đèn chưa sáng gần nhất.
 - **Lời dẫn của Ông Đăng** riêng cho từng Đêm ([ảnh](docs/proof/phase-2/screenshots/02_intro_night1.png)).
@@ -88,4 +90,4 @@ AGENTS.md, CLAUDE.md, .claude/   harness AI (skill verify-game, Stop hook, agent
 
 ## Tài liệu
 
-[Phase 1](docs/notes/phase-1.md) · [Phase 2](docs/notes/phase-2.md) · [Nhật ký AI](docs/notes/ai-log.md) · [Đánh giá & retro](docs/notes/retro.md) · [CHANGELOG](CHANGELOG.md) · [CREDITS](CREDITS.md) · [LICENSE](LICENSE)
+[Phase 1](docs/notes/phase-1.md) · [Phase 2](docs/notes/phase-2.md) · [Phase 3](docs/notes/phase-3.md) · [ADR](docs/adr/) · [Nhật ký AI](docs/notes/ai-log.md) · [Đánh giá & retro](docs/notes/retro.md) · [CHANGELOG](CHANGELOG.md) · [CREDITS](CREDITS.md) · [LICENSE](LICENSE)

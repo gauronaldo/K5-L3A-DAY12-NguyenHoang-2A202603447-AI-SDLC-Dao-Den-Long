@@ -1,5 +1,20 @@
 # Changelog
 
+## phase-3 — Đèn cạn dầu (contract v1.2)
+
+### Breaking changes
+- **Luật thắng:** bỏ thắng sớm `all_lit`; chỉ xét ở bình minh: `dawn_survived` nếu đèn sáng ≥ ceil(0.6 × tổng), ngược lại `dawn`.
+- **Thời lượng Đêm:** 300/330/360 s → 240/270/300 s.
+- **Điểm:** thay toàn bộ — +5/đom đóm nạp (cả châm dầu), +100 thắp lần đầu, +40 thắp lại, +5/+15 trúng Tỏa Sáng, bình minh 50 + floor(fuel) mỗi đèn sáng + 50 mỗi lửa; bỏ thưởng thời gian.
+- **Đèn:** có thể tắt khi hết dầu; tương tác với đèn sáng chưa đầy = châm dầu (trước đây bị bỏ qua).
+- **Vùng an toàn:** chỉ khi đèn sáng và fuel ≥ 30 (trước: mọi đèn sáng).
+- **Bóng Mực:** thêm trạng thái `drain`; wander ưu tiên đèn yếu.
+- **Snapshot:** đèn thêm `fuel`, `ever_lit`, `relit_count`; player thêm `capacity`. Sự kiện `lantern_lit` thêm `relight`; mới `refuel`, `lantern_out`, `fuel_drain`.
+- **Sức chứa:** 10 + 2 × số lần thắp thành công (tối đa 20).
+
+### Thêm
+- ADR 0001; thanh dầu + nhấp nháy 1 Hz; chế độ mù màu (lưu); scenario 21–26; camera FOV 70°.
+
 ## phase-2 — Ba hòn đảo (contract v1.1)
 
 ### Breaking

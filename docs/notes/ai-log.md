@@ -38,4 +38,15 @@
 | 4 | 20 scenario với kỳ vọng tính tay | 2 fail → 1 lỗi code (EPS), 1 lỗi scenario (gió) |
 | 5 | Âm thanh tự tổng hợp, settings, campaign, client mới | Xem ảnh chụp từng màn, đo FPS |
 
+## Phase 3
+
+| Bước | Việc giao cho AI | Tôi kiểm tra gì |
+|---|---|---|
+| 1 | Lưu Ticket-03, viết ADR + bảng tác động **trước** khi code | Đối chiếu từng mục [THAY THẾ] với test cũ |
+| 2 | Vá `config.py`/`sim.py` bằng script có `assert` từng đoạn thay | Xem diff; test cũ fail đúng 4 cái dự kiến |
+| 3 | Test Fuel/Drain + scenario 21–26 với kỳ vọng tính tay | 1 kỳ vọng sai (quên phần hút) |
+| 4 | Client: thanh dầu, mù màu, camera | Xem ảnh: phát hiện 3 lỗi hiển thị |
+
+**Token ước tính Phase 3:** ~250k. Tiết kiệm: vá file bằng script có `assert` thay vì ghi lại cả file lớn; chỉ in dòng FAIL.
+
 **Token ước tính Phase 2:** ~450k (đọc ticket dài, viết lại sim/client lớn). Tiết kiệm: lưu ticket vào file một lần; sinh scenario bằng một script thay vì từng file; chạy `verify.py` chỉ in dòng FAIL; chạy FPS/ảnh bằng tool thay vì mô tả bằng lời.

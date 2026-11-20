@@ -15,6 +15,12 @@
 - **Chưa đạt / rủi ro:** âm thanh chưa nghe kiểm tra; giả định B2/B3/B4/B11 có thể khác test ẩn.
 - **Harness:** AGENTS.md thêm quy tắc đếm tick, EPS, "kỳ vọng phải tính tay", nhớ cơ chế nền; skill thêm `why`, check mới, FPS.
 
+## Phase 3 — đánh giá
+
+- **Đạt:** P1–P11 ([bằng chứng](../proof/phase-3/README.md)); ADR 0001; CHANGELOG có mục Breaking changes.
+- **Hỏng phase trước:** không; 3 test xoá + 6 test sửa đều có lý do trong [phase-3.md §1](phase-3.md).
+- **Bài học:** lập bảng tác động trước khi code giúp test cũ fail đúng như dự đoán, không bất ngờ.
+
 ## Retro toàn dự án
 
 Sẽ hoàn thiện ở Phase 4 (số liệu token, bài học, nếu làm lại thì đổi gì).

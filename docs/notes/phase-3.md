@@ -45,3 +45,21 @@
 | P9 | Contract v1.2: tuning, snapshot (fuel 1 chữ số, đèn tắt 0), scenario, event | `test_headless`, `ContractFile` |
 | P10 | Mù màu: viền/mắt #00B3FF, cảnh báo #FFFFFF + ⚠, đèn tắt xẹp 20% + rách, sắp hết dầu nhấp nháy; được lưu | ảnh chụp + `test_app.SettingsTest` |
 | P11 | Thanh dầu trên đèn sáng; < 30 nhấp nháy 1 Hz | ảnh chụp |
+
+## 4. Đánh giá Phase 3
+
+- **Đạt:** P1–P11 ([bằng chứng](../proof/phase-3/README.md)); 86 unit test + 25 scenario, tất định.
+- **Phase trước có hỏng không:** test/scenario Phase 1–2 còn hiệu lực đạt nguyên vẹn; những cái bị thay đã ghi ở §1 (xoá 3, sửa 6).
+- **Thay đổi thiết kế:** [ADR 0001](../adr/0001-lantern-fuel-and-dawn-win.md) — dầu số nguyên, hai hàm `_safe/_accepts`, trạng thái `drain`, xét thắng ở bình minh.
+- **Rủi ro:** D5/D6 (thời điểm hút và ghi `fuel_drain`) và D2 (`ever_lit` mặc định) có thể khác test ẩn.
+
+## 5. AI sai / lỗi phát hiện
+
+| # | Lỗi | Phát hiện bằng | Xử lý |
+|---|---|---|---|
+| 1 | Heredoc bash chứa dấu `\` bị công cụ cắt → script vá không chạy (2 lần) | lỗi `unexpected EOF` | Ghi script vá ra file; quy tắc trong AGENTS.md |
+| 2 | Test mới quên event `night_start` đứng đầu danh sách, và truyền `player` 2 lần | unit test lỗi | Lọc theo tên event; sửa helper |
+| 3 | Kỳ vọng scenario 25 quên phần hút của tick 1 (40.0 thay vì 39.9) | verify FAIL | Sửa `why` (giữ ghi chú lần tính sai), thêm quy tắc AGENTS.md |
+| 4 | Ký hiệu ⚠ thành ô vuông: Arial không có glyph, `getGlyph` của Panda trả glyph thay thế chứ không `None` | xem ảnh chụp | Font ký hiệu riêng (Segoe UI Symbol / DejaVu), icon tách khỏi chữ |
+| 5 | Camera chúc xuống quá → đầu đèn và thanh dầu nằm ngoài khung hình khi chơi | xem ảnh chụp | FOV 70°, nâng điểm nhìn |
+| 6 | Vòng an toàn vẫn vẽ ở đèn < 30 dầu (sai luật mới) | xem ảnh chụp | Hiện vòng theo `sim._safe(lan)` |
