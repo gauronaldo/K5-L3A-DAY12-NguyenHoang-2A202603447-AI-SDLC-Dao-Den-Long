@@ -1,0 +1,29 @@
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Unit tests + headless scenarios + determinism
+        run: python3 tools/verify.py
+      - name: Headless smoke test using game.contract.json
+        run: |
+          CMD=$(python3 -c "import json;print(json.load(open('game.contract.json'))['headless_cmd'])")
+          $CMD --seed 3 --night 1 --ticks 600 --out smoke.jsonl
+          tail -n 1 smoke.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proof-${{ matrix.os }}
+          path: docs/proof/
