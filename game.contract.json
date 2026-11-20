@@ -1,9 +1,11 @@
 {
-  "contract_version": "1.2",
+  "contract_version": "1.3",
   "team": "2A202603447-nguyen-hoang",
   "build_cmd": "python3 -m pip install -r requirements.txt",
   "run_cmd": "python3 main.py",
   "headless_cmd": "python3 headless.py",
+  "bench_cmd": "python3 main.py --bench",
+  "soak_cmd": "python3 soak.py",
   "tuning": {
     "player_speed": 6.0,
     "carry_capacity": 10,

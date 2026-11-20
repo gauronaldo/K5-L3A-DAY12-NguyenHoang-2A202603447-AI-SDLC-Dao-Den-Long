@@ -82,12 +82,29 @@ SHOTS = [
         g, 1, {"random_shades": False, "time_left_s": 0.5,
                "lanterns": [{"id": "L1", "lit": True, "fuel": 70}, {"id": "L2", "lit": True}, {"id": "L3", "lit": True}]},
         {}, 40), g._night_finished())),
+    # Phase 4 (Ticket-04)
+    ("16_subtitle_spawn_arrow", lambda g: play_scenario(
+        g, 1, {"random_motes": True, "player": {"pos": [0, 0, -20]}}, {}, 302, yaw=200.0)),
+    ("17_name_entry", lambda g: (g.to_menu(), setattr(g.campaign, "total", 1265), setattr(g.campaign, "nights_won", 2),
+                                 g.show_name_entry("result"), g.panels["name"].entry.enterText("Mây_Nhỏ"))),
+    ("18_leaderboard", lambda g: (seed_leaderboard(g), g.show_leaderboard())),
+    ("19_keys_conflict", lambda g: (g.keys().__setitem__("jump", "e"), g._refresh_keys_panel(), g.show_panel("keys"))),
+    ("20_settings_accessibility", lambda g: (g._reset_keys(), g.settings.__setitem__("reduce_motion", True),
+                                             g.settings.__setitem__("large_text", True), g.apply_text_scale(),
+                                             g._on_settings(), g.show_panel("settings", back="menu"))),
+    ("21_large_text_hud", lambda g: play_scenario(g, 1, FUEL_SCENE, {}, 40, yaw=0.0)),
 ]
+
+
+def seed_leaderboard(g):
+    for name, score, won, t in (("Mây_Nhỏ", 1265, 2, "2026-11-20T20:10:00+07:00"), ("ongdang", 1840, 3, "2026-11-20T19:00:00+07:00"),
+                                ("lantern_1", 640, 1, "2026-11-20T18:30:00+07:00"), ("BongMuc", 0, 0, "2026-11-20T18:00:00+07:00")):
+        g.leaderboard.add(name, score, won, 7, achieved_at=t)
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="phase-3")
+    ap.add_argument("--phase", default="phase-4")
     a = ap.parse_args()
     out = os.path.join(ROOT, "docs", "proof", a.phase, "screenshots")
     os.makedirs(out, exist_ok=True)

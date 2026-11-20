@@ -189,6 +189,7 @@ class ContractFile(unittest.TestCase):
         self.assertEqual(set(gc["tuning"]), set(C.TUNING))
         self.assertEqual(gc["score"], C.SCORE)
         self.assertEqual(gc["fall_enabled"], C.FALL_ENABLED)
+        self.assertTrue(gc["bench_cmd"] and gc["soak_cmd"])   # contract v1.3
 
 
 if __name__ == "__main__":

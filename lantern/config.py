@@ -4,7 +4,7 @@ game.contract.json is checked against TUNING / SCORE by tests/test_headless.py.
 """
 import math
 
-CONTRACT_VERSION = "1.2"
+CONTRACT_VERSION = "1.3"
 TICK_RATE = 60
 DT = 1.0 / TICK_RATE
 
