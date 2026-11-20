@@ -79,6 +79,8 @@ class Simulation:
         self.state = "playing"
         self.result_reason = None
         self.paused = False
+        self._safe_cache = None   # safe lanterns frozen while shades move (perf only)
+        self.bench = False   # Ticket-04 benchmark scene: see lantern/bench_scene.py (never set by headless)
         self.tick = 0
         self.sim_tick = 0
         self.score = 0
@@ -199,7 +201,7 @@ class Simulation:
     def _make_shade(self, sid, pos, state="spawning"):
         t = C.SHADE_SPAWNING_TICKS if state == "spawning" else (C.STUN_TICKS if state == "stunned" else
                                                                (C.RECOIL_TICKS if state == "recoil" else 0))
-        return {"id": sid, "pos": pos, "state": state, "t": t, "push_left": 0, "push_dir": (1.0, 0.0),
+        return {"id": sid, "key": id_key(sid), "pos": pos, "state": state, "t": t, "push_left": 0, "push_dir": (1.0, 0.0),
                 "recoil_dir": (1.0, 0.0), "evict": 0, "evict_lan": None, "target_id": None, "drain_ticks": 0}
 
     def _make_lantern(self, lid, pos):
@@ -227,6 +229,8 @@ class Simulation:
         return not lan["lit"] or lan["fuel_u"] < C.FUEL_MAX_U
 
     def _safe_lanterns(self):
+        if self._safe_cache is not None:
+            return self._safe_cache
         return [l for l in self.lanterns if self._safe(l)]
 
     def _lan(self, lid):
@@ -339,7 +343,7 @@ class Simulation:
         self._move_player(inp, edge)
 
         # 4. pick up motes and charms
-        if self.alive():
+        if self.alive() and not self.bench:
             kept = []
             for m in self.motes:
                 if (pl["carried"] < self.capacity() and within(pl["pos"], m["pos"], T["pickup_radius"])
@@ -370,10 +374,15 @@ class Simulation:
             self._pulse()
 
         # 8. move shades and drifters
-        for s in sorted(self.shades, key=lambda s: id_key(s["id"])):
+        self._safe_cache = self._safe_lanterns()   # no lantern changes during step 8
+        for s in sorted(self.shades, key=lambda s: s["key"]):
             self._move_shade(s)
+        self._safe_cache = None
         for d in self.drifters:
             self._move_drifter(d)
+
+        if self.bench:   # bench scene: no damage, spawns or end of night
+            return self.events
 
         # 9. contacts: drifters steal first, then shades hit (ascending id)
         if self.alive():
@@ -396,11 +405,13 @@ class Simulation:
 
     def _update_fuel(self):
         """Ticket-03: step 2 burns fuel (decay + drain); right after, lanterns at fuel <= 0 go out."""
+        if self.bench:
+            return
         for lan in self.lanterns:
             if lan["lit"]:
                 lan["fuel_u"] -= C.DECAY_U
         drains = []
-        for s in sorted(self.shades, key=lambda s: id_key(s["id"])):
+        for s in sorted(self.shades, key=lambda s: s["key"]):
             if s["state"] == "drain":
                 lan = self._lan(s["target_id"])
                 if lan is not None and lan["lit"]:
@@ -573,7 +584,7 @@ class Simulation:
         pl["pulse_cd"] = C.PULSE_CD_TICKS
         center = [pl["pos"][0], pl["pos"][1] + C.PULSE_CENTER_Y, pl["pos"][2]]
         stunned = []
-        for s in sorted(self.shades, key=lambda s: id_key(s["id"])):
+        for s in sorted(self.shades, key=lambda s: s["key"]):
             if dist3(center, s["pos"]) <= T["pulse_radius"] + EPS:
                 if s["state"] == "drain":
                     self.score += C.SCORE["per_stun_draining"] - C.SCORE["per_stun"]
@@ -646,7 +657,7 @@ class Simulation:
                 self._step_toward(s, pl["pos"][0], pl["pos"][2], self._shade_speed())
         else:
             d = xz_dist(s["pos"], pl["pos"])
-            if st == "wander" and self.alive() and d <= C.SHADE_DETECT + EPS:
+            if st == "wander" and self.alive() and d <= C.SHADE_DETECT + EPS and not self.bench:
                 s["state"] = st = "chase"
             elif st == "chase" and (not self.alive() or d > C.SHADE_GIVEUP + EPS):
                 s["state"] = st = "wander"
@@ -715,7 +726,7 @@ class Simulation:
                 self._emit("drifter_steal", {"drifter_id": d["id"], "amount": amount, "carried": pl["carried"]})
         if pl["invuln"] > 0:
             return
-        for s in sorted(self.shades, key=lambda s: id_key(s["id"])):
+        for s in sorted(self.shades, key=lambda s: s["key"]):
             if (s["state"] in ("wander", "chase") and s["evict"] == 0
                     and within(pl["pos"], s["pos"], T["shade_hit_radius"])
                     and abs(pl["pos"][1] - s["pos"][1]) <= C.SHADE_HIT_DY + EPS):
