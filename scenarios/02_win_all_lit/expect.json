@@ -1,0 +1,23 @@
+{
+  "req": "R6 thang khi thap het den, R7 diem thuong khi thang",
+  "ticks": 600,
+  "expect": [
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "won",
+        "reason": "all_lit"
+      },
+      "tick": 1
+    },
+    {
+      "check": "end",
+      "state": "won",
+      "ticks": 1,
+      "score": 349
+    }
+  ],
+  "snapshot_every": 10,
+  "seed": 1
+}

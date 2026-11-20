@@ -1,0 +1,43 @@
+{
+  "req": "Ca dem 300 s (18000 tick) voi Bong Muc ngau nhien + spawn theo thoi gian; dung trong vung an toan cua den; binh minh -> thua",
+  "ticks": 20000,
+  "snapshot_every": 10,
+  "seed": 1,
+  "expect": [
+    {
+      "check": "event",
+      "name": "shade_spawned",
+      "data": {
+        "id": "S3"
+      },
+      "tick": 2700
+    },
+    {
+      "check": "event_count",
+      "name": "shade_spawned",
+      "count": 4
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    },
+    {
+      "check": "min_shade_lantern_dist",
+      "min": 5.0
+    },
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "lost",
+        "reason": "dawn"
+      },
+      "tick": 18000
+    },
+    {
+      "check": "end",
+      "state": "lost",
+      "ticks": 18000
+    }
+  ]
+}

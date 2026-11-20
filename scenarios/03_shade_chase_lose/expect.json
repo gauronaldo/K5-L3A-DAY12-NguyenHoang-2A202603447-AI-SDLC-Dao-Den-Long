@@ -1,0 +1,38 @@
+{
+  "req": "R5 Bong Muc duoi theo, cham mat HP, R6 thua khi het HP",
+  "ticks": 600,
+  "expect": [
+    {
+      "check": "event",
+      "name": "player_hit",
+      "data": {
+        "by": "shade",
+        "flames": 0,
+        "dropped": 0
+      },
+      "tick": 35
+    },
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "lost",
+        "reason": "no_flames"
+      },
+      "tick": 35
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "shades.0.state",
+      "equals": "chase"
+    },
+    {
+      "check": "end",
+      "state": "lost",
+      "ticks": 35
+    }
+  ],
+  "snapshot_every": 10,
+  "seed": 1
+}

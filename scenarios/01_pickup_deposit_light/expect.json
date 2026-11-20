@@ -1,0 +1,37 @@
+{
+  "req": "R3 nhat dom dom, R4 gui sang vao den, R4 thap den, R7 diem",
+  "ticks": 120,
+  "expect": [
+    {
+      "check": "event_count",
+      "name": "mote_picked",
+      "count": 5
+    },
+    {
+      "check": "event",
+      "name": "deposit",
+      "data": {
+        "lantern_id": "L1",
+        "amount": 5,
+        "deposited": 5
+      },
+      "tick": 81
+    },
+    {
+      "check": "event",
+      "name": "lantern_lit",
+      "data": {
+        "lantern_id": "L1"
+      },
+      "tick": 81
+    },
+    {
+      "check": "end",
+      "state": "playing",
+      "score": 150,
+      "ticks": 120
+    }
+  ],
+  "snapshot_every": 10,
+  "seed": 1
+}

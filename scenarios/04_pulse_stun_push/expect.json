@@ -1,0 +1,55 @@
+{
+  "req": "R5 xung sang day lui va lam choang, ton sang",
+  "ticks": 200,
+  "expect": [
+    {
+      "check": "event",
+      "name": "pulse",
+      "data": {
+        "stunned_ids": [
+          "S1"
+        ]
+      },
+      "tick": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "shades.0.state",
+      "equals": "stunned"
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "shades.0.pos",
+      "equals": [
+        8.0,
+        1.0,
+        0.0
+      ]
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "player.carried",
+      "equals": 2
+    },
+    {
+      "check": "snapshot",
+      "tick": 190,
+      "path": "shades.0.state",
+      "equals": "chase"
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    },
+    {
+      "check": "end",
+      "state": "playing",
+      "score": 5
+    }
+  ],
+  "snapshot_every": 10,
+  "seed": 1
+}

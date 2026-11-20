@@ -1,0 +1,21 @@
+{
+  "req": "R5 Bong Muc so den: khong vao safe_radius",
+  "ticks": 1200,
+  "expect": [
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    },
+    {
+      "check": "min_shade_lantern_dist",
+      "min": 5.0
+    },
+    {
+      "check": "end",
+      "state": "playing",
+      "ticks": 1200
+    }
+  ],
+  "snapshot_every": 1,
+  "seed": 1
+}

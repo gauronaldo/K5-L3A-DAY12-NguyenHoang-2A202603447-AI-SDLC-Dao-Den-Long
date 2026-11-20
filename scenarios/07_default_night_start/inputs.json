@@ -1,0 +1,35 @@
+{
+  "frames": [
+    {
+      "tick": 0,
+      "move": [
+        0.4,
+        1
+      ],
+      "cam_yaw_deg": 30
+    },
+    {
+      "tick": 40,
+      "jump": true
+    },
+    {
+      "tick": 41,
+      "jump": false
+    },
+    {
+      "tick": 60,
+      "move": [
+        -1,
+        0.2
+      ]
+    },
+    {
+      "tick": 90,
+      "pulse": true
+    },
+    {
+      "tick": 91,
+      "pulse": false
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "req": "Dem 1 mac dinh: bo cuc ban dau (5 den, 3 HP, 300 s, nguoi choi o goc), van dong + nhay + xung sang, tat dinh",
+  "ticks": 18000,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "lanterns.length",
+      "equals": 5
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "player.flames",
+      "equals": 3
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "time_left_s",
+      "equals": 300.0
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "player.pos",
+      "equals": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "check": "min_shade_lantern_dist",
+      "min": 5.0
+    }
+  ],
+  "snapshot_every": 10,
+  "seed": 1
+}
