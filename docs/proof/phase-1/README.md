@@ -28,6 +28,10 @@ Yêu cầu + giả định: [docs/notes/phase-1.md](../../notes/phase-1.md).
 - Trọn đêm 18000 tick (scenario `08`, 6 Bóng Mực): **~0.6 s** wall time trên Windows 11, Python 3.11.9 (≈ 30 000 tick/s, nhanh hơn thời gian thực ~500 lần).
 - Toàn bộ `tools/verify.py`: ~3 s.
 
+## Khớp tag (clone sạch)
+
+`git clone` sang thư mục mới → chạy `headless_cmd` lấy từ `game.contract.json` (exit 0) → `python3 tools/verify.py`: PASS; mọi `runs/*.jsonl` giống từng byte với bản đã commit, trong `verify-report.md` chỉ cột wall time thay đổi.
+
 ## Harness tự kiểm chứng
 
 - Stop hook (`tools/hooks/stop_gate.py`): thử đổi `player_speed` 6.0 → 5.0 → hook trả **exit 2** và in test lỗi; khôi phục → **exit 0**.
