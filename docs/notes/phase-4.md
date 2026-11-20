@@ -22,7 +22,7 @@
 | E14 | Phím Esc | Esc luôn mở tạm dừng/quay lại (không đổi được) để không bị kẹt; phím Tạm dừng đổi được (mặc định P) |
 | E15 | "Rung camera" | Game có rung camera 0.3 s khi bị đánh; "Giảm chuyển động" tắt rung + chớp màn hình |
 | E16 | 18 px | Chữ dùng scale ≥ 0.05 trong aspect2d (720 px / 2 = 360 px mỗi đơn vị → ≥ 18 px); chữ lớn nhân 1.25 |
-| E17 | Bản phát hành | `build_apps` của Panda3D tạo file thực thi Windows / Linux / macOS; kèm `.zip` mã nguồn chạy bằng 3 lệnh |
+| E17 | Bản phát hành | File thực thi **Windows x64** bằng `build_apps` (máy dùng/demo là Windows). macOS/Linux đáp ứng yêu cầu "chạy được trên macOS hoặc Linux" qua đường mã nguồn 3 lệnh, CI kiểm trên Ubuntu + macOS mỗi lần push |
 
 ## 2. Tiêu chí nghiệm thu
 
@@ -46,4 +46,4 @@
 - **Đạt:** Q1–Q12 ([bằng chứng](../proof/phase-4/README.md)). 99 unit test + 25 scenario; bench 103 FPS / 1% low 68.8 / load 2.1 s; soak 0 crash, RSS +0.7 MB.
 - **Phase trước có hỏng không:** không — mọi `runs/*.jsonl` Phase 3 giống từng byte sau khi thêm chế độ bench và tối ưu; scenario 01–26 vẫn đạt.
 - **Sửa lỗi cũ:** mũi tên ngoài màn hình (lỗi từ Phase 2) được phát hiện nhờ ảnh chụp Phase 4.
-- **Rủi ro:** số bench phụ thuộc máy (lần đo khi GPU bị chia sẻ nặng từng tụt 1% low xuống 14); bản macOS/Linux chỉ kiểm bằng workflow `release-smoke`; video là autopilot.
+- **Rủi ro:** số bench phụ thuộc máy (lần đo khi GPU bị chia sẻ nặng từng tụt 1% low xuống 14); macOS/Linux không có file thực thi riêng (chạy từ mã nguồn); video là autopilot.

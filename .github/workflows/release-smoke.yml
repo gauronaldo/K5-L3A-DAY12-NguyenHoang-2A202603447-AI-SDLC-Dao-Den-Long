@@ -1,7 +1,7 @@
 name: release-smoke
 
-# Downloads the published release zips and runs the packaged headless + soak binaries on real
-# Linux / macOS runners, comparing headless output byte-for-byte with the source version.
+# Downloads the published Windows release zip and runs the packaged headless + soak binaries on a
+# clean Windows runner, comparing headless output byte-for-byte with the source version.
 on:
   release:
     types: [published]
@@ -17,10 +17,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            asset: linux-x64
-          - os: macos-13          # x86_64 runner (the macOS build is x86_64)
-            asset: macos-x64
           - os: windows-latest
             asset: windows-x64
     runs-on: ${{ matrix.os }}

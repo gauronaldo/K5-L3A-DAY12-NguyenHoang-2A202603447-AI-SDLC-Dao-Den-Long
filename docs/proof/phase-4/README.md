@@ -28,7 +28,7 @@ Máy đo: Windows 11 (build 26200), AMD Ryzen 5 7500F, NVIDIA RTX 4060 (driver 5
 | Q8 | Chữ UI ≥ 18 px ở 720p; tùy chọn chữ lớn ×1.25 | `test_phase4.TextSize` (quét mọi `scale=` trong client, không có giá trị < 0.05); ảnh [21](screenshots/21_large_text_hud.png) | Đạt |
 | Q9 | README đủ mục; CHANGELOG có 4 phase; có CREDITS và LICENSE; clone sạch rồi chạy được trong 3 lệnh | [README](../../../README.md), [CHANGELOG](../../../CHANGELOG.md); CI chạy trên Ubuntu và macOS | Đạt |
 | Q10 | Contract v1.3 có `bench_cmd` và `soak_cmd`; luật v1.0–v1.2 giữ nguyên | `ContractFile.test_contract_matches_code`; 25 scenario Phase 1–3 vẫn đạt; mọi `runs/*.jsonl` Phase 3 giống từng byte sau khi tối ưu hiệu năng | Đạt |
-| Q11 | Release v1.0.0 có bản chạy được | 3 file zip (Windows / Linux / macOS) tạo bằng `build_apps`. Bản Windows: đã chạy thử trên máy này, output headless giống từng byte với bản chạy từ mã nguồn, exit 2 với `--night 9`, soak đạt, game 200 FPS. Bản Linux và macOS: workflow [release-smoke](../../../.github/workflows/release-smoke.yml) chạy chính các file zip trên runner thật | Đạt (xem kết quả workflow ở tab Actions) |
+| Q11 | Release v1.0.0 có bản chạy được | `DaoDenLong-1.0.0-windows-x64.zip` tạo bằng `build_apps`: đã chạy thử trên máy này (output headless giống từng byte với bản chạy từ mã nguồn, exit 2 với `--night 9`, soak đạt, game 200 FPS) và workflow [release-smoke](../../../.github/workflows/release-smoke.yml) chạy lại trên máy Windows sạch của GitHub. macOS/Linux chạy từ mã nguồn (CI Ubuntu + macOS) | Đạt |
 | Q12 | Retro 1–2 trang; video demo dưới 5 phút | [retro.md](../../notes/retro.md); [demo.mp4](../../demo/demo.mp4) dài 2:33 | Đạt. Video được render từ client thật nhưng do autopilot chơi, không phải quay người chơi trực tiếp |
 
 ## Lịch sử đo bench (cùng code và cùng lệnh, chỉ khác tải nền của máy)
@@ -46,5 +46,6 @@ Kết luận: số đo trên máy cá nhân dao động mạnh theo tải nền.
 ## Giới hạn
 
 - Video demo là autopilot render offscreen, nên không có âm thanh và không phải cảnh người chơi trực tiếp. Nên quay thêm một đoạn chơi tay nếu cần.
-- Bản macOS là x86_64 (trên Apple Silicon chạy qua Rosetta 2) và chưa ký số, nên lần đầu mở cần chuột phải chọn Open.
+- Release chỉ có file thực thi Windows (theo lựa chọn phát hành). Trên macOS/Linux chạy bằng 3 lệnh từ mã nguồn.
+- File `.exe` chưa ký số, Windows SmartScreen có thể hỏi xác nhận ở lần chạy đầu.
 - Âm thanh chưa được nghe kiểm tra thủ công (giống Phase 2).

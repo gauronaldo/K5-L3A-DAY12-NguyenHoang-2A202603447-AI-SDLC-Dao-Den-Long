@@ -7,7 +7,7 @@
 - Soak test `python3 soak.py --seed 7 --nights 10 --out soak.json`.
 - Bảng xếp hạng cục bộ top 10 (nhập tên sau Bình Minh hoặc khi thua, màn hình từ menu, `--export-leaderboard`).
 - Hỗ trợ tiếp cận: đổi phím 9 hành động (báo trùng, khôi phục mặc định), phụ đề + mũi tên mép màn hình khi Bóng Mực xuất hiện, gió, 10 s cuối; giảm chuyển động (tắt rung camera + chớp màn hình); chữ lớn ×1.25; chữ UI ≥ 18 px.
-- Bản phát hành bằng `build_apps` (Windows / Linux / macOS), video demo, retro.
+- Bản phát hành Windows x64 bằng `build_apps` (macOS/Linux chạy từ mã nguồn), video demo, retro.
 
 ### Sửa
 - Mũi tên chỉ đèn / Bóng Mực ngoài màn hình dùng `setR` (quay quanh tâm màn hình) → `setRoll` (lỗi có từ Phase 2).

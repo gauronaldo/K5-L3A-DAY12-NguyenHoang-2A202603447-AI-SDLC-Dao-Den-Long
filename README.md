@@ -1,7 +1,7 @@
 # Đảo Đèn Lồng — Day 12 AI SDLC
 
 > 🎬 **Video demo (2:33):** [demo.mp4 trong Release v1.0.0](https://github.com/gauronaldo/K5-L3A-DAY12-NguyenHoang-2A202603447-AI-SDLC-Dao-Den-Long/releases/download/v1.0.0/demo.mp4) · bản trong repo: [docs/demo/demo.mp4](docs/demo/demo.mp4)
-> 📦 **Bản chạy được:** [Release v1.0.0](https://github.com/gauronaldo/K5-L3A-DAY12-NguyenHoang-2A202603447-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0) (Windows / Linux / macOS)
+> 📦 **Bản chạy được:** [Release v1.0.0](https://github.com/gauronaldo/K5-L3A-DAY12-NguyenHoang-2A202603447-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0) (file thực thi Windows, không cần cài Python)
 > Nguyễn Hoàng · 2A202603447 · Đề bài: [docs/lab/](docs/lab/README.md) · Ticket: [docs/lab/tickets/](docs/lab/tickets/)
 
 Đảo Đèn Lồng là game 3D góc nhìn thứ ba. Người chơi điều khiển **Mây**, người giữ đèn nhỏ tuổi đội nón lá, đi gom **đom đóm** để thắp và châm dầu cho các **Đèn Lồng Lớn** trên ba hòn đảo giữa biển mây. Mục tiêu là giữ đảo sáng tới bình minh, đồng thời né **Bóng Mực** (chúng hút dầu đèn) và **Gió Lạc** (chúng cướp đom đóm).
@@ -10,9 +10,8 @@
 
 ## Yêu cầu hệ thống
 
-- macOS 10.9+ / Linux x86_64 / Windows 10+, có card đồ hoạ hỗ trợ OpenGL 3.2 (cần cho bản 3D).
-- Chạy từ mã nguồn: Python ≥ 3.10 và `panda3d==1.10.14`. Headless, test, soak chỉ cần Python, không cần GPU.
-- Bản đóng gói trong Release đã kèm sẵn Python và Panda3D.
+- **Bản phát hành:** Windows 10/11 x64, card đồ hoạ hỗ trợ OpenGL 3.2; đã kèm sẵn Python và Panda3D.
+- **Từ mã nguồn (Windows / macOS / Linux):** Python ≥ 3.10 và `panda3d==1.10.14`. Headless, test, soak chỉ cần Python, không cần GPU.
 
 ## Cài đặt và chạy (3 lệnh)
 
@@ -22,7 +21,7 @@ python3 -m pip install -r requirements.txt
 python3 main.py
 ```
 
-Nếu dùng bản đóng gói, giải nén file zip trong Release rồi chạy `DaoDenLong` (Windows: `DaoDenLong.exe`; macOS: `DaoDenLong.app`, lần đầu mở bằng chuột phải → Open). Trên Windows thì gõ `python` thay cho `python3`.
+**Windows không cần cài gì:** tải `DaoDenLong-1.0.0-windows-x64.zip` trong [Release v1.0.0](https://github.com/gauronaldo/K5-L3A-DAY12-NguyenHoang-2A202603447-AI-SDLC-Dao-Den-Long/releases/tag/v1.0.0), giải nén, chạy `DaoDenLong.exe`. Khi chạy từ mã nguồn trên Windows, gõ `python` thay cho `python3`.
 
 ## Điều khiển (đổi được trong Cài đặt → Phím điều khiển)
 
@@ -54,7 +53,7 @@ python3 -m unittest discover -s tests      # chỉ chạy unit test
 python3 tools/screenshot.py --phase phase-4   # chụp ảnh từ client thật (offscreen)
 ```
 
-CI chạy `verify.py` trên Ubuntu và macOS mỗi lần push. Workflow `release-smoke` chạy chính các file trong Release trên Linux, macOS và Windows. Bảng truy vết từ yêu cầu tới bằng chứng: [Phase 1](docs/proof/phase-1/README.md) · [Phase 2](docs/proof/phase-2/README.md) · [Phase 3](docs/proof/phase-3/README.md) · [Phase 4](docs/proof/phase-4/README.md).
+CI chạy `verify.py` trên Ubuntu và macOS mỗi lần push. Workflow `release-smoke` tải bản Windows trong Release về một máy Windows sạch và chạy thử. Bảng truy vết từ yêu cầu tới bằng chứng: [Phase 1](docs/proof/phase-1/README.md) · [Phase 2](docs/proof/phase-2/README.md) · [Phase 3](docs/proof/phase-3/README.md) · [Phase 4](docs/proof/phase-4/README.md).
 
 ## Headless (Test Contract v1.3)
 

@@ -47,6 +47,7 @@
 | 3 | Bench trong client | Bench đầu 77 FPS → cProfile → giảm draw call, cache màu → 117 FPS; kiểm tra output headless giống từng byte |
 | 4 | Đổi phím, phụ đề, giảm chuyển động, chữ lớn, bảng xếp hạng | Xem ảnh: phát hiện mũi tên lệch (`setR`, lỗi từ Phase 2), màu tím vô hình, phụ đề lặp/sót |
 | 5 | Đóng gói `build_apps`, video demo dựng offscreen | Bản build tải chậm → đổi nguồn wheel; xem video |
+| 6 | Theo yêu cầu: chỉ phát hành bản Windows | Bỏ target Linux/macOS khỏi `setup.py`, `package_release.py`, workflow; tài liệu ghi macOS/Linux chạy từ mã nguồn |
 
 **Token ước tính Phase 4:** ~450k. Tiết kiệm: profile trước khi tối ưu (không đoán); dựng video bằng script thay vì nhiều vòng thử tay.
 

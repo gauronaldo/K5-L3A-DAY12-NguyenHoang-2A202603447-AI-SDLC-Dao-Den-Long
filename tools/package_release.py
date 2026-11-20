@@ -9,7 +9,7 @@ import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION = "1.0.0"
-TARGETS = {"win_amd64": "windows-x64", "manylinux2014_x86_64": "linux-x64", "macosx_10_9_x86_64": "macos-x64"}
+TARGETS = {"win_amd64": "windows-x64"}
 EXEC_NAMES = {"DaoDenLong", "DaoDenLong-headless", "DaoDenLong-soak"}
 
 
@@ -46,14 +46,13 @@ def main():
 
 README = """Dao Den Long v1.0.0 ({label})
 
-Windows : DaoDenLong.exe                     (game)
-Linux   : ./DaoDenLong                       (game; needs an OpenGL driver)
-macOS   : open DaoDenLong.app  or ./DaoDenLong   (x86_64; Apple Silicon runs it through Rosetta 2.
-          First launch: right-click > Open, because the app is not signed.)
+Windows 10/11 x64, no Python needed. Double-click DaoDenLong.exe to play.
 
-Headless (Test Contract v1.3):  DaoDenLong-headless --seed 1 --night 1 --ticks 600 --out out.jsonl
-Soak test:                      DaoDenLong-soak --seed 7 --nights 10 --out soak.json
-Benchmark:                      DaoDenLong --bench --seed 42 --duration 30 --out bench.json
+Headless (Test Contract v1.3):  DaoDenLong-headless.exe --seed 1 --night 1 --ticks 600 --out out.jsonl
+Soak test:                      DaoDenLong-soak.exe --seed 7 --nights 10 --out soak.json
+Benchmark:                      DaoDenLong.exe --bench --seed 42 --duration 30 --out bench.json
+
+macOS / Linux: run from source (3 commands in the repository README).
 
 Source, tests and evidence: https://github.com/gauronaldo/K5-L3A-DAY12-NguyenHoang-2A202603447-AI-SDLC-Dao-Den-Long
 """

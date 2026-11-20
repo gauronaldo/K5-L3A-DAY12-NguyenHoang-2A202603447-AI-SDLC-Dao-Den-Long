@@ -10,7 +10,7 @@ setup(
             "console_apps": {"DaoDenLong-headless": "headless.py", "DaoDenLong-soak": "soak.py"},
             "include_patterns": ["assets/sounds/*.wav", "game.contract.json", "LICENSE", "CREDITS.md"],
             "plugins": ["pandagl", "p3openal_audio"],
-            "platforms": ["win_amd64", "manylinux2014_x86_64", "macosx_10_9_x86_64"],
+            "platforms": ["win_amd64"],   # release targets Windows; macOS/Linux run from source (README)
             "include_modules": ["lantern.*"],
             "use_optimized_wheels": False,   # plain PyPI wheels (the optimised ones download from a slow mirror)
         }
