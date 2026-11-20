@@ -164,7 +164,7 @@ class Lanterns(unittest.TestCase):
         evs = press(sim, "interact")
         self.assertEqual(names(evs), ["deposit", "lantern_lit"])
         self.assertEqual(sim.player["carried"], 5)
-        self.assertEqual(sim.score, 10 * 10 + 100)
+        self.assertEqual(sim.score, 10 * 5 + 100)   # Ticket-03: +5 per firefly put in
 
     def test_choose_nearest_then_lower_id(self):
         lans = [{"id": "L2", "pos": [1, 0, 0]}, {"id": "L1", "pos": [-1, 0, 0]}, {"id": "L3", "pos": [0, 0, 0.5]}]
@@ -306,22 +306,35 @@ class Night(unittest.TestCase):
         self.assertEqual(evs[-1]["data"], {"result": "lost", "reason": "dawn"})
         self.assertEqual(evs[-1]["tick"], 60)
 
-    def test_win_on_dawn_tick_and_bonus(self):
-        lans = [{"id": "L%d" % i, "lit": True} for i in range(2, 6)] + [{"id": "L1", "pos": [0, 0, 1], "deposited": 9}]
-        sim = Simulation(0, scen(player={"carried": 1}, lanterns=lans, time_left_s=1 / 60))
-        evs = sim.step(inp(interact=True))
-        self.assertEqual(evs[-1]["data"], {"result": "won", "reason": "all_lit"})
-        self.assertEqual(sim.score, 10 + 100 + 0 * 2 + 50 * 3)
+    # Phase 2 tests test_win_on_dawn_tick_and_bonus / test_win_bonus_seconds_x2 removed:
+    # Ticket-03 replaces "win when all lanterns are lit" and drops the time bonus.
+    def test_no_early_win(self):
+        sim = Simulation(0, scen(lanterns=[{"id": "L%d" % i, "lit": True} for i in range(1, 6)]))
+        evs = run(sim, 600)
+        self.assertNotIn("game_over", names(evs))
+        self.assertEqual(sim.state, "playing")
 
-    def test_win_bonus_seconds_x2(self):
-        lans = [{"id": "L%d" % i, "lit": True} for i in range(2, 6)] + [{"id": "L1", "pos": [0, 0, 1], "deposited": 9}]
-        sim = Simulation(0, scen(player={"carried": 1}, lanterns=lans, time_left_s=100))
-        sim.step(inp(interact=True))
-        self.assertEqual(sim.score, 10 + 100 + 99 * 2 + 150)
+    def test_dawn_survived_threshold_and_bonus(self):
+        # 3 of 5 lit at the last tick -> win; bonus = per lit lantern 50 + floor(fuel), per flame 50
+        lans = [{"id": "L1", "lit": True, "fuel": 40.5}, {"id": "L2", "lit": True, "fuel": 100},
+                {"id": "L3", "lit": True, "fuel": 31}]
+        sim = Simulation(0, scen(lanterns=lans, time_left_s=1.0))
+        evs = run(sim, 60)
+        self.assertEqual(evs[-1]["data"], {"result": "won", "reason": "dawn_survived"})
+        # after 60 ticks every fuel dropped by 1.0: 39.5, 99, 30
+        self.assertEqual(sim.score, (50 + 39) + (50 + 99) + (50 + 30) + 3 * 50)
+
+    def test_dawn_below_threshold_loses(self):
+        sim = Simulation(0, scen(lanterns=[{"id": "L1", "lit": True}, {"id": "L2", "lit": True}], time_left_s=1.0))
+        evs = run(sim, 60)
+        self.assertEqual(evs[-1]["data"], {"result": "lost", "reason": "dawn"})
+        self.assertEqual(sim.score, 0)
+
+    def test_thresholds_per_night(self):
+        self.assertEqual([Simulation(0, night=n).win_threshold() for n in (1, 2, 3)], [3, 4, 5])
 
     def test_no_flames_beats_all_lit_and_dawn(self):
-        # a shade next to a lantern that is being lit is evicted and harmless, so the "all lit + lethal hit"
-        # case is built with every lantern already lit and the shade far from all of them
+        # Ticket-03: at the dawn tick, with enough lit lanterns, losing the last flame still loses (no_flames)
         lans = [{"id": "L%d" % i, "lit": True} for i in range(1, 6)]
         sim = Simulation(0, scen(player={"flames": 1}, lanterns=lans, shades=[{"pos": [0.5, 1, 0]}],
                                  time_left_s=1 / 60))
@@ -350,6 +363,131 @@ class Night(unittest.TestCase):
             self.assertEqual(evs[0]["data"], {"night": n})
             self.assertEqual(sim.player["flames"], 3)
             self.assertEqual(sim.total_ticks, int(C.NIGHTS[n]["duration_s"] * 60))
+
+
+class Fuel(unittest.TestCase):
+    def test_decay_and_out(self):
+        sim = Simulation(0, scen(lanterns=[{"id": "L1", "lit": True, "fuel": 1.0}]))
+        evs = run(sim, 59)
+        self.assertTrue(sim.lanterns[0]["lit"])
+        evs = sim.step(inp())
+        self.assertEqual(names(evs), ["lantern_out"])
+        lan = sim.lanterns[0]
+        self.assertEqual((lan["lit"], lan["deposited"], lan["ever_lit"]), (False, 0, True))
+        self.assertEqual(sim.snapshot()["lanterns"][0]["fuel"], 0.0)
+
+    def test_relight_costs_5_scores_40(self):
+        sim = Simulation(0, scen(player={"carried": 7}, lanterns=[{"id": "L1", "pos": [0, 0, 1], "ever_lit": True}]))
+        evs = [e for e in press(sim, "interact") if e["name"] != "night_start"]
+        self.assertEqual(evs[0]["data"], {"lantern_id": "L1", "amount": 5, "deposited": 5})
+        self.assertEqual(evs[1]["data"], {"lantern_id": "L1", "relight": True})
+        self.assertEqual(sim.score, 5 * 5 + 40)
+        self.assertEqual(sim.lanterns[0]["relit_count"], 1)
+        self.assertEqual(sim.lanterns[0]["fuel_u"], C.FUEL_MAX_U - 1)   # set to 100 at tick 1, decayed at tick 2
+
+    def test_first_light_reports_relight_false(self):
+        sim = Simulation(0, scen(player={"carried": 10}, lanterns=[{"id": "L1", "pos": [0, 0, 1]}]))
+        evs = [e for e in press(sim, "interact") if e["name"] == "lantern_lit"]
+        self.assertEqual(evs[0]["data"], {"lantern_id": "L1", "relight": False})
+
+    def test_refuel_formula(self):
+        # fuel 44.0 -> missing 56 -> ceil(5.6) = 6 needed, carrying 4 -> used 4 -> fuel 84.0 (after this tick's decay 83.983)
+        sim = Simulation(0, scen(player={"carried": 4}, lanterns=[{"id": "L1", "pos": [0, 0, 1], "lit": True, "fuel": 44.0}]))
+        evs = sim.step(inp(interact=True))
+        ref = [e for e in evs if e["name"] == "refuel"][0]["data"]
+        self.assertEqual(ref, {"lantern_id": "L1", "amount": 4, "fuel": 84.0})
+        self.assertEqual(sim.player["carried"], 0)
+        self.assertEqual(sim.score, 20)
+
+    def test_refuel_caps_at_100(self):
+        # fuel 95 -> missing 5 -> ceil(0.5) = 1 firefly, fuel min(100, 105) = 100
+        sim = Simulation(0, scen(player={"carried": 9}, lanterns=[{"id": "L1", "pos": [0, 0, 1], "lit": True, "fuel": 95.0}]))
+        evs = sim.step(inp(interact=True))
+        self.assertEqual([e["data"] for e in evs if e["name"] == "refuel"], [{"lantern_id": "L1", "amount": 1, "fuel": 100.0}])
+        self.assertEqual(sim.player["carried"], 8)
+
+    def test_full_lantern_not_selected(self):
+        # L1 full (lit this tick, no decay yet happens before interact? decay is step 2, so make it exactly full via
+        # scenario fuel 100 + 1/60 is not possible) -> use a lantern that is full right at interact time
+        lans = [{"id": "L1", "pos": [0, 0, 0.5], "lit": True}, {"id": "L2", "pos": [0, 0, 1.5]}]
+        sim = Simulation(0, scen(player={"carried": 3}, lanterns=lans))
+        sim.lanterns[0]["fuel_u"] = C.FUEL_MAX_U + C.DECAY_U   # still exactly 100 after this tick's decay
+        evs = sim.step(inp(interact=True))
+        self.assertEqual([e["data"]["lantern_id"] for e in evs if e["name"] == "deposit"], ["L2"])
+
+    def test_low_fuel_loses_zone_exact_30_keeps_it(self):
+        lan30 = {"id": "L1", "pos": [0, 0, 0], "lit": True}
+        sim = Simulation(0, scen(lanterns=[lan30]))
+        sim.lanterns[0]["fuel_u"] = C.LOW_FUEL_U + C.DECAY_U    # 30.0 after decay this tick
+        sim.step(inp())
+        self.assertTrue(sim._safe(sim.lanterns[0]))
+        sim.step(inp())
+        self.assertFalse(sim._safe(sim.lanterns[0]))
+
+    def test_capacity_grows(self):
+        sim = Simulation(0, scen(player={"successful_lights": 4}))
+        self.assertEqual(sim.capacity(), 18)
+        sim.player["successful_lights"] = 9
+        self.assertEqual(sim.capacity(), 20)
+        sim = Simulation(0, scen(player={"carried": 10}, lanterns=[{"id": "L1", "pos": [0, 0, 1]}]))
+        press(sim, "interact")
+        self.assertEqual(sim.snapshot()["player"]["capacity"], 12)
+
+
+class Drain(unittest.TestCase):
+    def weak(self, player=None, **kw):
+        lans = [{"id": "L1", "pos": [0, 0, 20], "lit": True, "fuel": 20.0}]
+        return Simulation(0, scen(lanterns=lans, player=player or {"pos": [0, 0, -20]}, **kw))
+
+    def test_wander_goes_to_weak_lantern_and_drains(self):
+        sim = self.weak(shades=[{"id": "S1", "pos": [0, 1, 12]}])
+        n = 0
+        while sim.shades[0]["state"] != "drain" and n < 300:
+            sim.step(inp())
+            n += 1
+        # 12 -> 18 m (2 m from the lantern) at 2 m/s = 3 s
+        self.assertEqual(n, 180)
+        before = sim.lanterns[0]["fuel_u"]
+        evs = run(sim, 60)
+        self.assertEqual(before - sim.lanterns[0]["fuel_u"], 60 * (C.DECAY_U + C.DRAIN_U))
+        fd = [e["data"] for e in evs if e["name"] == "fuel_drain"]
+        self.assertEqual(fd, [{"lantern_id": "L1", "shade_id": "S1", "fuel": round(sim.lanterns[0]["fuel_u"] / 60, 1)}])
+
+    def test_drains_stack(self):
+        sim = self.weak(shades=[{"id": "S1", "pos": [1, 1, 19], "state": "drain", "target_lantern_id": "L1"},
+                                {"id": "S2", "pos": [-1, 1, 19], "state": "drain", "target_lantern_id": "L1"}])
+        before = sim.lanterns[0]["fuel_u"]
+        run(sim, 10)
+        self.assertEqual(before - sim.lanterns[0]["fuel_u"], 10 * (1 + 5 + 5))
+
+    def test_drain_to_chase_within_6m(self):
+        sim = self.weak(shades=[{"id": "S1", "pos": [0, 1, 18.5], "state": "drain", "target_lantern_id": "L1"}])
+        sim.player["pos"] = [0.0, 0.0, 12.6]   # 5.9 m away
+        sim.step(inp())
+        self.assertEqual(sim.shades[0]["state"], "chase")
+
+    def test_drain_to_wander_when_out_or_refuelled(self):
+        sim = self.weak(shades=[{"id": "S1", "pos": [0, 1, 18.5], "state": "drain", "target_lantern_id": "L1"}])
+        sim.lanterns[0]["fuel_u"] = 3
+        evs = sim.step(inp())     # 3 - 1 - 5 <= 0 -> out this tick
+        self.assertIn("lantern_out", names(evs))
+        self.assertEqual(sim.shades[0]["state"], "wander")
+
+    def test_pulse_draining_scores_15(self):
+        sim = self.weak(player={"pos": [0, 0, 14], "carried": 3},
+                        shades=[{"id": "S1", "pos": [0, 1, 18.2], "state": "drain", "target_lantern_id": "L1"}])
+        sim.step(inp(pulse=True))
+        self.assertEqual(sim.score, 15)
+        self.assertEqual(sim.shades[0]["state"], "stunned")
+
+    def test_refuel_above_30_evicts(self):
+        sim = self.weak(player={"pos": [0, 0, 19], "carried": 2},
+                        shades=[{"id": "S1", "pos": [1.5, 1, 20], "state": "drain", "target_lantern_id": "L1"}])
+        sim.step(inp(interact=True))     # 20 -> 40: zone back on, S1 evicted
+        self.assertEqual(sim.shades[0]["state"], "wander")
+        evs = run(sim, 30)
+        self.assertNotIn("player_hit", names(evs))
+        self.assertGreaterEqual(xz_dist(sim.shades[0]["pos"], [0, 0, 20]), T["safe_radius"])
 
 
 class Drifters(unittest.TestCase):

@@ -39,8 +39,8 @@ class Cli(unittest.TestCase):
         snaps = [l for l in lines if l["type"] == "snapshot"]
         self.assertEqual([s["tick"] for s in snaps], [0, 10, 20])
         self.assertTrue(all(s["sim_tick"] == s["tick"] for s in snaps))
-        self.assertEqual(snaps[0]["time_left_s"], 300.0)
-        self.assertAlmostEqual(snaps[1]["time_left_s"], 300 - 10 / 60, places=3)
+        self.assertEqual(snaps[0]["time_left_s"], 240.0)   # Ticket-03: Night 1 lasts 240 s
+        self.assertAlmostEqual(snaps[1]["time_left_s"], 240 - 10 / 60, places=3)
         self.assertEqual(lines[-1], {"type": "end", "ticks": 25, "state": "playing", "score": snaps[-1]["score"]})
 
     def test_snapshot0_is_before_input(self):
@@ -152,6 +152,18 @@ class Cli(unittest.TestCase):
         self.assertEqual((snaps[10]["state"], snaps[10]["sim_tick"]), ("paused", 5))
         self.assertEqual((snaps[30]["state"], snaps[30]["sim_tick"]), ("playing", 15))
         self.assertEqual([l["name"] for l in lines if l.get("name") in ("paused", "resumed")], ["paused", "resumed"])
+
+    def test_snapshot_schema_v1_2(self):
+        sc = {"lanterns": [{"id": "L1", "lit": True}, {"id": "L2", "lit": True, "fuel": 12.34, "ever_lit": True}],
+              "player": {"successful_lights": 2}}
+        proc, lines = run_cli(*BASE, "--ticks", "1", "--snapshot-every", "1", "--scenario", "{s}", files={"s": sc})
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        snap = [l for l in lines if l["type"] == "snapshot"][0]
+        self.assertEqual(snap["lanterns"][0]["fuel"], 100.0)   # lit without fuel -> 100
+        self.assertEqual(snap["lanterns"][1]["fuel"], 12.3)    # one decimal
+        self.assertEqual(snap["lanterns"][2]["fuel"], 0.0)     # unlit -> 0
+        self.assertEqual(set(snap["lanterns"][0]), {"id", "pos", "lit", "deposited", "fuel", "ever_lit", "relit_count"})
+        self.assertEqual(snap["player"]["capacity"], 14)
 
     def test_bad_night_exit_2(self):
         proc, _ = run_cli("--seed", "1", "--night", "4", "--ticks", "10", "--out", "{out}")
