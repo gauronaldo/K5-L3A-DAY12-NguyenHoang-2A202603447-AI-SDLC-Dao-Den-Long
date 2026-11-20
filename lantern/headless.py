@@ -18,7 +18,7 @@ def _dump(obj):
 
 
 def run(seed, night, ticks, out_path, scenario=None, frames=None, snapshot_every=10):
-    sim = Simulation(seed=seed, scenario=scenario)
+    sim = Simulation(seed=seed, scenario=scenario, night=night)
     frames = frames or {}
     inp = InputState()
     lines = [_dump(sim.snapshot())]
@@ -29,18 +29,18 @@ def run(seed, night, ticks, out_path, scenario=None, frames=None, snapshot_every
                 setattr(inp, key, val)
         for ev in sim.step(inp):
             lines.append(_dump(ev))
-        if sim.steps % snapshot_every == 0:
+        if sim.tick % snapshot_every == 0:
             lines.append(_dump(sim.snapshot()))
         if sim.state != "playing":
             break
-    lines.append(_dump({"type": "end", "ticks": sim.steps, "state": sim.state, "score": sim.score}))
+    lines.append(_dump({"type": "end", "ticks": sim.tick, "state": sim.state, "score": sim.score}))
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
     return sim
 
 
 def main(argv=None):
-    ap = _Parser(prog="headless", description="Dao Den Long headless mode (Test Contract v1.0)")
+    ap = _Parser(prog="headless", description="Dao Den Long headless mode (Test Contract v1.1)")
     ap.add_argument("--seed", type=int, required=True)
     ap.add_argument("--night", type=int, required=True)
     ap.add_argument("--scenario")
@@ -50,8 +50,8 @@ def main(argv=None):
     ap.add_argument("--snapshot-every", type=int, default=10)
     a = ap.parse_args(argv)
 
-    if a.night != 1:
-        sys.stderr.write("error: only --night 1 exists in this build\n")
+    if a.night not in (1, 2, 3):
+        sys.stderr.write("error: --night must be 1, 2 or 3\n")
         return 2
     if a.ticks < 0 or a.snapshot_every < 1:
         sys.stderr.write("error: --ticks must be >= 0 and --snapshot-every >= 1\n")
