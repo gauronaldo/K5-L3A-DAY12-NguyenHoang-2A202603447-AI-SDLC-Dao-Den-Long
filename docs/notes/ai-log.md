@@ -27,3 +27,15 @@
 | 4 | Kịch bản ảnh đặt người chơi cách đèn 3.5 m (> 2.5 m) nên không gửi được sáng | Điểm in ra = 0 thay vì 100 | Tool in `state/score` cho mỗi ảnh |
 | 5 | Ghi mô tả scenario 07 "chạy hết 18000 tick" nhưng run kết thúc ở tick 726 | Đọc dòng `end` | Đổi mô tả, thêm scenario 08 chạy trọn đêm; quy tắc trong AGENTS.md |
 | 6 | Bật `AntialiasAttrib` làm lộ viền trắng mọi tam giác | Xem ảnh chụp | Quy tắc "phải xem ảnh" trong AGENTS.md |
+
+## Phase 2
+
+| Bước | Việc giao cho AI | Tôi kiểm tra gì |
+|---|---|---|
+| 1 | Chép Ticket-02 vào repo, lập bảng "giả định Phase 1 bị thay" + tiêu chí cho Phần 3 | Đối chiếu từng dòng số chuẩn |
+| 2 | Viết `config.py` (số chuẩn + 3 bản đồ), `world.py`, viết lại `sim.py` theo 12 bước | Đọc diff theo thứ tự 12 bước của ticket |
+| 3 | Viết lại unit test theo số chuẩn | 9 test fail lần đầu: 2 lỗi code, 7 lỗi test (xem phase-2.md §6) |
+| 4 | 20 scenario với kỳ vọng tính tay | 2 fail → 1 lỗi code (EPS), 1 lỗi scenario (gió) |
+| 5 | Âm thanh tự tổng hợp, settings, campaign, client mới | Xem ảnh chụp từng màn, đo FPS |
+
+**Token ước tính Phase 2:** ~450k (đọc ticket dài, viết lại sim/client lớn). Tiết kiệm: lưu ticket vào file một lần; sinh scenario bằng một script thay vì từng file; chạy `verify.py` chỉ in dòng FAIL; chạy FPS/ảnh bằng tool thay vì mô tả bằng lời.

@@ -8,6 +8,13 @@
 - **Cần chỉnh:** giữ thứ tự xử lý tick (A13) trong một chỗ duy nhất để phase sau dễ đổi luật; scenario mới nên viết trước khi code.
 - **Harness:** AGENTS.md thêm 3 quy tắc từ lỗi thật; Stop hook đã thử chặn được khi test đỏ.
 
+## Phase 2 — đánh giá
+
+- **Đạt:** toàn bộ số chuẩn, 3 bản đồ, contract v1.1, 9 tính năng Phần 3 ([bằng chứng](../proof/phase-2/README.md)); FPS ~500 ở 1280×720.
+- **Hỏng phase trước:** không; test Phase 1 bị số chuẩn thay đã sửa/xoá có lý do.
+- **Chưa đạt / rủi ro:** âm thanh chưa nghe kiểm tra; giả định B2/B3/B4/B11 có thể khác test ẩn.
+- **Harness:** AGENTS.md thêm quy tắc đếm tick, EPS, "kỳ vọng phải tính tay", nhớ cơ chế nền; skill thêm `why`, check mới, FPS.
+
 ## Retro toàn dự án
 
 Sẽ hoàn thiện ở Phase 4 (số liệu token, bài học, nếu làm lại thì đổi gì).

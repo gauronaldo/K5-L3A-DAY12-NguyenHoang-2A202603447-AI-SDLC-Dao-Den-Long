@@ -75,3 +75,24 @@
 | F7 | HUD | Lửa trên trái; mm:ss trên giữa đỏ + nhấp nháy khi ≤ 30 s; đèn k/n + điểm trên phải; 10 ô đom đóm dưới giữa; hồi chiêu Lướt/Tỏa Sáng dưới phải; "E — Nạp ánh sáng (x/10)" gần đèn; mũi tên mép màn hình tới đèn chưa sáng khi nó ở ngoài màn hình | ảnh chụp |
 | F8 | Bảng màu | Các màu liệt kê dùng đúng hex (sai ≤ 10%); ánh sáng môi trường = 0.15 + 0.55 × sáng/tổng | unit `test_palette` + ảnh |
 | F9 | Hiệu năng | ≥ 30 FPS trung bình ở 1280×720 | `tools/fps_probe.py` |
+
+## 5. Đánh giá Phase 2
+
+- **Đạt:** S1–S12, C1–C2, F1–F9 (chi tiết: [bằng chứng](../proof/phase-2/README.md)). 68 unit test + 20 scenario, tất định 2/2.
+- **Phase 1 có hỏng không:** test Phase 1 còn hiệu lực vẫn đạt; test bị số chuẩn thay đã sửa/xoá theo bảng §1. Phần sáng tạo Phase 1 (vòng an toàn, la bàn, đèn tay sáng dần) giữ lại, vòng an toàn đổi thành 6 m và chỉ hiện ở đèn đã sáng cho khớp luật mới.
+- **Rủi ro:** các giả định B2 (chênh cao so tâm shade), B3 (spawning 60 tick), B4 (wander tới đèn chưa sáng), B11 (xuất phát Đêm 3) có thể khác test ẩn.
+- **Cần chỉnh:** `step()` dài — nếu Phase 3 thêm trạng thái đèn thì tách phần đèn ra hàm riêng.
+
+## 6. AI sai / lỗi phát hiện trong Phase 2
+
+| # | Lỗi | Phát hiện bằng | Xử lý |
+|---|---|---|---|
+| 1 | Recoil chỉ đi 59/60 bước (bước đầu rơi vào tick sau) | unit test tính tay khoảng cách 2 m | Đi bước recoil đầu ngay trong tick bị đánh |
+| 2 | `Simulation` chỉ nhận đom đóm dạng dict, scenario v1.0 dùng mảng `[x,y,z]` | unit test lỗi `TypeError` | Nhận cả hai dạng |
+| 3 | Cộng dồn 0.1 m làm x = 40.0000000001 → rời đảo sớm 1 tick | scenario `09_fall_respawn` lệch tick 69/70 | EPS cho mép bản đồ (`world.py`) |
+| 4 | Viết test sai: nhấn lướt khi đang lướt, quên bật gió, nhấn nhảy lặp lại sau khi chạm đất, vách tầng ở r=24 không phải 26, shade bị đặt lại độ cao | chạy test, đọc lại luật | Sửa test, ghi lý do trong commit |
+| 5 | Test "no_flames thắng all_lit" dựng shade cạnh đèn vừa thắp — luật mới làm shade vô hại nên test không thể đúng | đọc lại luật vùng an toàn | Dựng lại: mọi đèn đã sáng sẵn, shade xa đèn |
+| 6 | Scenario cả Đêm 3 quên gió → Mây bị thổi ra khỏi vùng an toàn rồi rơi | dòng `end` ticks = 5871 thay vì 21600 | Tắt gió trong scenario đó (gió có scenario 19 riêng), thêm quy tắc vào AGENTS.md |
+| 7 | Ghi `Write` client mới thất bại vì chưa đọc file | thông báo công cụ | Đọc rồi ghi lại |
+| 8 | Ký tự `✕` không có trong font Arial | cảnh báo Panda3D khi chạy FPS probe | Dùng `×`; ghi vào AGENTS.md |
+| 9 | Trong bảng bằng chứng đã lỡ ghi "nghe thử bằng tai" dù chưa nghe | tự rà soát trước khi commit | Sửa thành "chưa nghe kiểm tra" |
