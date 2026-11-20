@@ -18,5 +18,9 @@ description: Run the full verification of Dao Den Long (unit tests, headless sce
      `player_moved`, `min_shade_lantern_dist` (lit lanterns, from_tick?), `end`.
    - `why` = hand calculation of every expected number. Never copy numbers from a run.
 4. Client changed → `python3 tools/screenshot.py --phase phase-N`, then OPEN the PNGs and look.
-5. Performance → `python3 main.py --fps-probe 10 --night 3` (save the JSON line to `docs/proof/phase-N/fps.json`).
+5. Performance → `python3 main.py --fps-probe 10 --night 3` (save the JSON line to `docs/proof/phase-N/fps.jsonl`).
+   Release benchmark → `python3 main.py --bench --seed 42 --duration 30 --out docs/proof/phase-4/bench.json`
+   (thresholds avg >= 60, 1% low >= 30, load <= 10000 ms; note other heavy apps running).
+   Soak → `python3 soak.py --seed 7 --nights 10 --out docs/proof/phase-4/soak.json` (crashes 0, mem_end <= 1.2 x start).
+   Slow? profile first: run the bench under cProfile with SystemExit caught (userExit calls sys.exit).
 6. Never edit `docs/proof/` by hand. Commit regenerated evidence with the code it verifies.

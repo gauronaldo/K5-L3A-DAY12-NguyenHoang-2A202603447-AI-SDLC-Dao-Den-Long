@@ -1,6 +1,6 @@
 # AGENTS.md — Đảo Đèn Lồng
 
-Game 3D (Panda3D) 3 Đêm + headless theo Test Contract **v1.2**. Python 3.10+.
+Game 3D (Panda3D) 3 Đêm + headless theo Test Contract **v1.3**. Python 3.10+.
 Quyết định thiết kế lớn: `docs/adr/`.
 
 ## Lệnh
@@ -9,12 +9,16 @@ Quyết định thiết kế lớn: `docs/adr/`.
 - Headless: `python3 headless.py --seed 1 --night {1,2,3} --ticks 600 --out out.jsonl [--scenario f] [--inputs f]`
 - Game: `python3 main.py` · FPS: `python3 main.py --fps-probe 10 --night 3` · Ảnh: `python3 tools/screenshot.py --phase phase-N`
 - Âm thanh sinh lại: `python3 tools/gen_sounds.py`
+- Bench: `python3 main.py --bench --seed 42 --duration 30 --out docs/proof/phase-4/bench.json` (đóng app nặng khác trước khi đo)
+- Soak: `python3 soak.py --seed 7 --nights 10 --out docs/proof/phase-4/soak.json`
+- Bản phát hành: `python setup.py build_apps` · Video: `python3 tools/make_demo.py`
 
 ## Cấu trúc
 - `lantern/sim.py` logic thuần (KHÔNG import panda3d). `step()` đi đúng **12 bước** của Ticket-02 — giữ comment đánh số.
 - `lantern/config.py` số chuẩn + 3 bản đồ + bảng màu. `lantern/world.py` mặt đất/vật cản theo Đêm.
 - `lantern/files.py` đọc/kiểm tra inputs & scenario (lỗi → exit 2). `lantern/headless.py` CLI.
-- `lantern/client.py` render + HUD + menu, chỉ đọc state sim. `campaign.py`, `settings.py` thuần Python.
+- `lantern/client.py` render + HUD + menu, chỉ đọc state sim. `campaign.py`, `settings.py`, `leaderboard.py`,
+  `bench_scene.py`, `soak.py`, `sysinfo.py` thuần Python (test được không cần GPU).
 - `scenarios/<NN_name>/` = scenario + inputs + expect (có `why` giải thích con số kỳ vọng).
 
 ## Quy tắc
@@ -34,4 +38,9 @@ Quyết định thiết kế lớn: `docs/adr/`.
 - Vá file lớn bằng script Python ghi ra file (có `assert` từng đoạn), không dùng heredoc chứa `\\` trong bash.
 - `ShowBase` đã có `restart`, `run`, `start`… — không đặt trùng tên. Font Arial thiếu một số ký tự (✕): dùng ký tự Latin-1.
 - Đổi client → chạy `tools/screenshot.py` và XEM ảnh.
+- `OnscreenText`: xoay bằng `setRoll(-deg)` — `setR` quay quanh tâm màn hình (mũi tên Phase 2–3 từng nằm sai chỗ).
+- Màu UI phải tương phản với nền đêm (tím #7A3CFF gần như vô hình trên #0E1430); dùng màu cảnh báo cho chỉ báo.
+- Hiệu năng: mỗi thực thể ≤ 2 geom, chỉ đổi màu khi trạng thái đổi; đo bằng `--bench`/cProfile trước khi tối ưu.
+- Chữ UI: scale ≥ 0.05 (18 px ở 720p) — `tests/test_phase4.py` quét code.
+- Số đo hiệu năng phải ghi kèm máy và hoàn cảnh (app nặng khác đang chạy?) — không sửa tay `bench.json`.
 - Mô tả scenario (`req`) phải khớp điều thực sự kiểm tra; nhớ các cơ chế nền (gió Đêm 3, spawn mặc định) khi dựng scenario.
