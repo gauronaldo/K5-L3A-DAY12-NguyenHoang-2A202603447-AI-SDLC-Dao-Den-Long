@@ -38,6 +38,30 @@
 | 4 | 20 scenario với kỳ vọng tính tay | 2 fail → 1 lỗi code (EPS), 1 lỗi scenario (gió) |
 | 5 | Âm thanh tự tổng hợp, settings, campaign, client mới | Xem ảnh chụp từng màn, đo FPS |
 
+## Phase 4
+
+| Bước | Việc giao cho AI | Tôi kiểm tra gì |
+|---|---|---|
+| 1 | Lưu Ticket-04, bảng giả định E1–E17 + tiêu chí Q1–Q12 | Đối chiếu từng số đo/định nghĩa của ticket |
+| 2 | Module thuần: `bench_scene` (công thức avg/1% low/p95), `soak`, `leaderboard`, `sysinfo` | Test tính tay công thức; chạy soak thật |
+| 3 | Bench trong client | Bench đầu 77 FPS → cProfile → giảm draw call, cache màu → 117 FPS; kiểm tra output headless giống từng byte |
+| 4 | Đổi phím, phụ đề, giảm chuyển động, chữ lớn, bảng xếp hạng | Xem ảnh: phát hiện mũi tên lệch (`setR`, lỗi từ Phase 2), màu tím vô hình, phụ đề lặp/sót |
+| 5 | Đóng gói `build_apps`, video demo dựng offscreen | Bản build tải chậm → đổi nguồn wheel; xem video |
+
+**Token ước tính Phase 4:** ~450k. Tiết kiệm: profile trước khi tối ưu (không đoán); dựng video bằng script thay vì nhiều vòng thử tay.
+
+**Lỗi AI ghi nhận ở Phase 4**
+
+| # | Lỗi | Phát hiện bằng | Xử lý |
+|---|---|---|---|
+| 1 | Mũi tên ngoài màn hình dùng `NodePath.setR` → quay quanh tâm màn hình, nằm sai chỗ từ Phase 2 | Debug vị trí node rồi dò pixel trong ảnh | `setRoll(-deg)`; quy tắc AGENTS.md |
+| 2 | Mũi tên Bóng Mực màu tím gần như vô hình trên nền đêm | Ảnh chụp | Dùng màu cảnh báo |
+| 3 | Phụ đề lặp khi 2 Bóng Mực sinh cùng tick; phụ đề Đêm trước sót sang Đêm sau | Ảnh chụp | Gộp phụ đề trùng; xoá khi tải Đêm |
+| 4 | `buttonThrowers` là `None` ở cửa sổ offscreen → tool chụp ảnh crash | Traceback | Kiểm tra trước khi dùng |
+| 5 | cProfile không ghi kết quả vì `userExit` gọi `sys.exit` | Không có file profile | Bắt `SystemExit` trong script profile |
+| 6 | `platform.release()` báo "10" trên Windows 11 | Đọc `bench.json` | Dùng số build |
+| 7 | `build_apps` treo 30 phút khi tải wheel tối ưu từ buildbot | Log không đổi | `use_optimized_wheels: False` |
+
 ## Phase 3
 
 | Bước | Việc giao cho AI | Tôi kiểm tra gì |

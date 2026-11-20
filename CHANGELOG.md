@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.0.0 / phase-4 — Bình minh (contract v1.3)
+
+### Thêm
+- Chế độ benchmark `python3 main.py --bench --seed 42 --duration 30 --out bench.json` (200 Bóng Mực, 100 đom đóm, camera bay vòng, khởi động 3 s, số liệu avg / 1% low / p95 / load / RSS).
+- Soak test `python3 soak.py --seed 7 --nights 10 --out soak.json`.
+- Bảng xếp hạng cục bộ top 10 (nhập tên sau Bình Minh hoặc khi thua, màn hình từ menu, `--export-leaderboard`).
+- Hỗ trợ tiếp cận: đổi phím 9 hành động (báo trùng, khôi phục mặc định), phụ đề + mũi tên mép màn hình khi Bóng Mực xuất hiện, gió, 10 s cuối; giảm chuyển động (tắt rung camera + chớp màn hình); chữ lớn ×1.25; chữ UI ≥ 18 px.
+- Bản phát hành bằng `build_apps` (Windows / Linux / macOS), video demo, retro.
+
+### Sửa
+- Mũi tên chỉ đèn / Bóng Mực ngoài màn hình dùng `setR` (quay quanh tâm màn hình) → `setRoll` (lỗi có từ Phase 2).
+- Hiệu năng: 2 geom mỗi Bóng Mực, 1 geom mỗi đom đóm, chỉ đổi màu khi trạng thái đổi, cache khoá id và đèn an toàn trong tick (77 → 117 FPS trong cảnh bench khi máy rảnh). Output headless không đổi.
+
+### Contract
+- `contract_version` 1.3; `game.contract.json` thêm `bench_cmd`, `soak_cmd`. Không đổi luật v1.0–v1.2.
+
 ## phase-3 — Đèn cạn dầu (contract v1.2)
 
 ### Breaking changes
