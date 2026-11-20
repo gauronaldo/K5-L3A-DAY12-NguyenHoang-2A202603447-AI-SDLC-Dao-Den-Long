@@ -1,5 +1,5 @@
 {
-  "req": "C2 ca Dem 1 (18000 tick), toi da 6 Bong Muc, binh minh -> thua; chay <= 30 s",
+  "req": "C2 ca Dem 1 (240 s = 14400 tick), toi da 6 Bong Muc, binh minh khong du den -> thua; <= 30 s",
   "why": "dung o goc: Bong Muc wander toi den (cach >= 23 m) nen khong duoi",
   "ticks": 21600,
   "expect": [
@@ -19,12 +19,12 @@
         "result": "lost",
         "reason": "dawn"
       },
-      "tick": 18000
+      "tick": 14400
     },
     {
       "check": "end",
       "state": "lost",
-      "ticks": 18000
+      "ticks": 14400
     }
   ],
   "seed": 1,

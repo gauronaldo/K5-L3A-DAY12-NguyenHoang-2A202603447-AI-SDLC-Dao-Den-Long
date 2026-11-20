@@ -1,6 +1,6 @@
 {
-  "req": "S3/S4 nhat 10 dom dom, nap vao den (cost 10, ban kinh 2 m), thap den, diem +10/nap +100/den",
-  "why": "10 mote o z=2..11 nhat o tick 10..100; toi z=12.0 o tick 120, cach den 2.0 m -> nap o tick 121",
+  "req": "S3/S4 + P2 diem moi: nhat 10, nap 10 (+5/dom dom), thap lan dau +100",
+  "why": "10 mote o z=2..11 nhat o tick 10..100; toi z=12.0 o tick 120, cach den 2.0 m -> nap o tick 121; diem Ticket-03 = 10 x 5 + 100 = 150 (Phase 2 la 200)",
   "ticks": 150,
   "expect": [
     {
@@ -30,14 +30,15 @@
       "check": "event",
       "name": "lantern_lit",
       "data": {
-        "lantern_id": "L1"
+        "lantern_id": "L1",
+        "relight": false
       },
       "tick": 121
     },
     {
       "check": "end",
       "state": "playing",
-      "score": 200,
+      "score": 150,
       "ticks": 150
     }
   ],

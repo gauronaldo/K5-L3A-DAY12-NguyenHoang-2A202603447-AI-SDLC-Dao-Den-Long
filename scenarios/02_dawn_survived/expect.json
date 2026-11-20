@@ -1,0 +1,29 @@
+{
+  "req": "P6/P7 thang luc binh minh khi den sang >= ceil(0.6 x 5) = 3; thuong moi den 50 + floor(fuel), moi lua 50",
+  "why": "120 tick: fuel 50 -> 48, 100 -> 98, 30.5 -> 28.5; diem = (50+48)+(50+98)+(50+28)+3x50 = 474",
+  "ticks": 600,
+  "expect": [
+    {
+      "check": "no_event",
+      "name": "lantern_out"
+    },
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "won",
+        "reason": "dawn_survived"
+      },
+      "tick": 120
+    },
+    {
+      "check": "end",
+      "state": "won",
+      "ticks": 120,
+      "score": 474
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

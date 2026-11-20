@@ -1,0 +1,42 @@
+{
+  "req": "P8 suc chua = 10 + 2 x so lan thap thanh cong: thap 1 den -> nhat duoc 12, con 13 o lai",
+  "why": "thap L1 o tick 1 (carried 10 -> 0); di +Z tu tick 10 qua 13 dom dom z=3..15 -> nhat 12, con 1",
+  "ticks": 220,
+  "expect": [
+    {
+      "check": "event",
+      "name": "lantern_lit",
+      "data": {
+        "lantern_id": "L1",
+        "relight": false
+      },
+      "tick": 1
+    },
+    {
+      "check": "event_count",
+      "name": "mote_picked",
+      "count": 12
+    },
+    {
+      "check": "snapshot",
+      "tick": 220,
+      "path": "player.carried",
+      "equals": 12
+    },
+    {
+      "check": "snapshot",
+      "tick": 220,
+      "path": "player.capacity",
+      "equals": 12
+    },
+    {
+      "check": "snapshot",
+      "tick": 220,
+      "path": "motes_active",
+      "equals": 1
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

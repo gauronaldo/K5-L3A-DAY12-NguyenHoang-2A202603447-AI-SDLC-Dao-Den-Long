@@ -1,0 +1,35 @@
+{
+  "req": "P5 cham dau len >= 30 khi Bong Muc dang hut trong vung 6 m -> no ve wander, bi day ra <= 30 tick, khong gay sat thuong",
+  "why": "tick 1 buoc 2: 1200 - 1 (hao) - 5 (S1 dang hut) = 1194; cham 2 x 600 -> 2394 don vi = 39.9 (lan dau tinh tay quen phan hut -> 40.0); tu tick 31 shade phai cach den >= 6 m",
+  "ticks": 120,
+  "snapshot_every": 1,
+  "expect": [
+    {
+      "check": "event",
+      "name": "refuel",
+      "data": {
+        "lantern_id": "L1",
+        "amount": 2,
+        "fuel": 39.9
+      },
+      "tick": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 1,
+      "path": "shades.0.state",
+      "equals": "wander"
+    },
+    {
+      "check": "min_shade_lantern_dist",
+      "min": 6.0,
+      "from_tick": 31
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    }
+  ],
+  "seed": 1,
+  "night": 1
+}

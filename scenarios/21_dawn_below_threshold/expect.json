@@ -1,0 +1,25 @@
+{
+  "req": "P6 binh minh ma chi 2/5 den sang (< 3) -> thua dawn, khong co diem binh minh",
+  "why": "time_left 1 s = 60 tick",
+  "ticks": 200,
+  "expect": [
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "lost",
+        "reason": "dawn"
+      },
+      "tick": 60
+    },
+    {
+      "check": "end",
+      "state": "lost",
+      "ticks": 60,
+      "score": 0
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

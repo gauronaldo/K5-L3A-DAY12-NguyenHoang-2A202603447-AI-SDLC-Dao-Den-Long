@@ -1,5 +1,5 @@
 {
-  "req": "S3/S7/S11 Dem 1 mac dinh: 5 den chuan, 20 dom dom, +1 o tick 240, 2 Bong Muc o tick 300, S3 o tick 780",
+  "req": "S3/S7/S11 Dem 1 mac dinh (240 s): 5 den chuan, 20 dom dom, +1 o tick 240, 2 Bong Muc o tick 300, S3 o tick 780",
   "why": "lich sinh 300 + 480k; dung yen o goc nen khong nhat (diem gan nhat cach 12 m)",
   "ticks": 1000,
   "expect": [
@@ -41,7 +41,7 @@
       "check": "snapshot",
       "tick": 0,
       "path": "time_left_s",
-      "equals": 300.0
+      "equals": 240.0
     },
     {
       "check": "event",

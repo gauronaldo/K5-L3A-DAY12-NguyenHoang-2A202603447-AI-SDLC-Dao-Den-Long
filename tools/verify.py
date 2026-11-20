@@ -104,7 +104,7 @@ def run_headless(sdir, meta, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
-    ap.add_argument("--phase", default="phase-2")
+    ap.add_argument("--phase", default="phase-3")
     a = ap.parse_args()
 
     ok_unit, n_unit, n_bad = unit_tests()

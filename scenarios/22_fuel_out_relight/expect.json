@@ -1,0 +1,72 @@
+{
+  "req": "P1/P3 het dau -> lantern_out, deposited 0, ever_lit; thap lai can 5, relight true, +40; fuel 100; capacity 12",
+  "why": "fuel 1.0 = 60 don vi, hao 1/tick -> tat o tick 60; nap o tick 71 (5 x 5 + 40 = 65); tick 90: 6000 - 19 = 5981 -> 99.7",
+  "ticks": 100,
+  "expect": [
+    {
+      "check": "event",
+      "name": "lantern_out",
+      "data": {
+        "lantern_id": "L1"
+      },
+      "tick": 60
+    },
+    {
+      "check": "snapshot",
+      "tick": 60,
+      "path": "lanterns.0.fuel",
+      "equals": 0.0
+    },
+    {
+      "check": "snapshot",
+      "tick": 60,
+      "path": "lanterns.0.ever_lit",
+      "equals": true
+    },
+    {
+      "check": "event",
+      "name": "deposit",
+      "data": {
+        "lantern_id": "L1",
+        "amount": 5,
+        "deposited": 5
+      },
+      "tick": 71
+    },
+    {
+      "check": "event",
+      "name": "lantern_lit",
+      "data": {
+        "lantern_id": "L1",
+        "relight": true
+      },
+      "tick": 71
+    },
+    {
+      "check": "snapshot",
+      "tick": 90,
+      "path": "lanterns.0.fuel",
+      "equals": 99.7
+    },
+    {
+      "check": "snapshot",
+      "tick": 90,
+      "path": "lanterns.0.relit_count",
+      "equals": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 90,
+      "path": "player.capacity",
+      "equals": 12
+    },
+    {
+      "check": "end",
+      "state": "playing",
+      "score": 65
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

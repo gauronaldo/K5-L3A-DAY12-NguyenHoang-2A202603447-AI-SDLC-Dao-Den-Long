@@ -1,0 +1,36 @@
+{
+  "req": "P2 cham dau: used = min(mang, ceil((100 - fuel)/10)), fuel + 10 x used, +5/dom dom; den day khong duoc chon",
+  "why": "tick 1: 44 - 1/60 = 43.983, thieu 56.02 -> can 6, mang 4 -> used 4 -> 83.983 -> 84.0; diem 20",
+  "ticks": 30,
+  "expect": [
+    {
+      "check": "event",
+      "name": "refuel",
+      "data": {
+        "lantern_id": "L1",
+        "amount": 4,
+        "fuel": 84.0
+      },
+      "tick": 1
+    },
+    {
+      "check": "event_count",
+      "name": "refuel",
+      "count": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "player.carried",
+      "equals": 0
+    },
+    {
+      "check": "end",
+      "state": "playing",
+      "score": 20
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

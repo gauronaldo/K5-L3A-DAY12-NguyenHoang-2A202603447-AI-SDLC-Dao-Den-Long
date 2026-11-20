@@ -1,0 +1,46 @@
+{
+  "req": "P4 den fuel < 30 mat vung an toan; Bong Muc wander toi, <= 2 m -> drain, hut 5/s (+ hao 1/s); fuel_drain moi 60 tick; het dau -> wander",
+  "why": "S1 cach den 8 m, di 6 m voi 2 m/s -> drain o tick 180, fuel 1200 - 180 = 1020 don vi; moi tick -6: tick 240 con 660 -> 11.0; 1020/6 = 170 tick -> tat o tick 350",
+  "ticks": 400,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 170,
+      "path": "shades.0.state",
+      "equals": "wander"
+    },
+    {
+      "check": "snapshot",
+      "tick": 190,
+      "path": "shades.0.state",
+      "equals": "drain"
+    },
+    {
+      "check": "event",
+      "name": "fuel_drain",
+      "data": {
+        "lantern_id": "L1",
+        "shade_id": "S1",
+        "fuel": 11.0
+      },
+      "tick": 240
+    },
+    {
+      "check": "event",
+      "name": "lantern_out",
+      "data": {
+        "lantern_id": "L1"
+      },
+      "tick": 350
+    },
+    {
+      "check": "snapshot",
+      "tick": 360,
+      "path": "shades.0.state",
+      "equals": "wander"
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}
