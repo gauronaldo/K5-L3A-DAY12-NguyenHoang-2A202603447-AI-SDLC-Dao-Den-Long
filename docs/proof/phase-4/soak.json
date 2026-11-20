@@ -1,0 +1,32 @@
+{
+  "nights": 10,
+  "crashes": 0,
+  "results": [
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost",
+    "lost"
+  ],
+  "mem_start_mb": 25.3,
+  "mem_end_mb": 26.0,
+  "duration_s": 1.9,
+  "seeds": [
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "os": "Windows 11 (build 26200) (AMD64), Python 3.11.9"
+}

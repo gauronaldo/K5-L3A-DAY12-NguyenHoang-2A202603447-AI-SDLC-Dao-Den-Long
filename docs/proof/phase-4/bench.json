@@ -1,0 +1,24 @@
+{
+  "contract_version": "1.3",
+  "frames": 3091,
+  "avg_fps": 103.0,
+  "p1_low_fps": 68.8,
+  "frame_ms_p95": 11.98,
+  "load_ms": 2080,
+  "peak_mem_mb": 156.7,
+  "vsync_off": true,
+  "renderer": "Panda3D 1.10.14, NVIDIA GeForce RTX 4060/PCIe/SSE2 (NVIDIA Corporation 4.6.0 NVIDIA 580.88)",
+  "os": "Windows 11 (build 26200) (AMD64), Python 3.11.9",
+  "scene": {
+    "shades": 200,
+    "motes": 100,
+    "lit": [
+      "L1",
+      "L2",
+      "L3"
+    ],
+    "seed": 42,
+    "duration_s": 30.0,
+    "warmup_s": 3.0
+  }
+}
