@@ -6,6 +6,7 @@ import json
 import math
 import os
 import random
+import sys
 import time
 import unicodedata
 
@@ -26,7 +27,10 @@ from .world import ground_height
 
 T = C.TUNING
 PAL = {k: C.hex_rgb(v) for k, v in C.PALETTE.items()}
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if getattr(sys, "frozen", False):          # packaged by build_apps: data files sit next to the executable
+    ROOT = os.path.dirname(os.path.abspath(sys.executable))
+else:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOUND_DIR = os.path.join(ROOT, "assets", "sounds")
 SFX = ("pickup", "lantern_lit", "pulse", "hit", "jump", "dash", "win", "lose", "shade_spawn", "countdown", "wind")
 EVENT_SFX = {"mote_picked": "pickup", "lantern_lit": "lantern_lit", "pulse": "pulse", "player_hit": "hit",

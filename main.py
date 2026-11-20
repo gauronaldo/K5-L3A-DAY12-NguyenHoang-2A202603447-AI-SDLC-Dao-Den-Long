@@ -4,7 +4,8 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+if not getattr(sys, "frozen", False):   # packaged builds have no __file__ and already contain the package
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lantern.client import main  # noqa: E402
 
