@@ -29,6 +29,15 @@ class SettingsTest(unittest.TestCase):
         self.assertEqual(s2["volume"], 0.35)
         self.assertEqual(s2["mouse_sensitivity"], 3.0)   # clamped
 
+    def test_colorblind_persisted(self):
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, "settings.json")
+        s = Settings.load(path)
+        self.assertFalse(s["colorblind"])
+        s["colorblind"] = True
+        s.save()
+        self.assertTrue(Settings.load(path)["colorblind"])
+
     def test_corrupt_file_falls_back_to_defaults(self):
         d = tempfile.mkdtemp()
         path = os.path.join(d, "settings.json")

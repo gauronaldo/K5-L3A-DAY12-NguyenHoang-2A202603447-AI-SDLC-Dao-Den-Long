@@ -20,10 +20,16 @@ from lantern.client import Game  # noqa: E402
 from lantern.sim import InputState, Simulation  # noqa: E402
 
 OFF = {"random_motes": False, "random_drifters": False, "wind_enabled": False}
+# L1 low on fuel with a shade draining it, L2 healthy, L3 out (ever lit) - all in front of the camera
+FUEL_SCENE = {"player": {"pos": [2, 0, 12], "carried": 6}, "random_shades": False,
+              "lanterns": [{"id": "L1", "lit": True, "fuel": 22}, {"id": "L2", "pos": [8, 0, 26], "lit": True, "fuel": 80},
+                           {"id": "L3", "pos": [-5, 0, 24], "ever_lit": True}],
+              "shades": [{"id": "S1", "pos": [1.2, 1, 23.8], "state": "drain", "target_lantern_id": "L1"}]}
 
 
 def play_scenario(g, night, scenario, script, ticks, yaw=20.0):
     g.campaign.night = night
+    g.campaign.total = 0
     g.show_intro()
     g.start_night()
     g.sim = Simulation(7, scenario, night=night)
@@ -67,12 +73,21 @@ SHOTS = [
         g._night_finished())),
     ("11_dawn", lambda g: (setattr(g.campaign, "night", 3), setattr(g.sim, "state", "won"),
                            setattr(g.campaign, "total", 1840), g._night_finished())),
+    # Phase 3 (Ticket-03)
+    ("12_fuel_bars_drain", lambda g: play_scenario(g, 1, FUEL_SCENE, {}, 40, yaw=0.0)),
+    ("13_colorblind", lambda g: (g.settings.__setitem__("colorblind", True),
+                                 play_scenario(g, 1, FUEL_SCENE, {}, 40, yaw=0.0))),
+    ("14_settings_colorblind", lambda g: (g._on_settings(), g.show_panel("settings", back="pause"))),
+    ("15_result_dawn_survived", lambda g: (g.settings.__setitem__("colorblind", False), play_scenario(
+        g, 1, {"random_shades": False, "time_left_s": 0.5,
+               "lanterns": [{"id": "L1", "lit": True, "fuel": 70}, {"id": "L2", "lit": True}, {"id": "L3", "lit": True}]},
+        {}, 40), g._night_finished())),
 ]
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--phase", default="phase-2")
+    ap.add_argument("--phase", default="phase-3")
     a = ap.parse_args()
     out = os.path.join(ROOT, "docs", "proof", a.phase, "screenshots")
     os.makedirs(out, exist_ok=True)
