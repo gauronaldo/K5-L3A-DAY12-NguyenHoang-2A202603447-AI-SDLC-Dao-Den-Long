@@ -1,33 +1,43 @@
-"""Panda3D 3D client: renders a Simulation and feeds it keyboard input at a fixed 60 Hz.
+"""Panda3D client: menus, three nights, HUD, audio. Renders a Simulation and feeds it input at a fixed 60 Hz.
 
-Everything here is presentation only. Gameplay lives in lantern/sim.py, so the
-headless output is unaffected by anything in this file.
+Presentation only - gameplay lives in lantern/sim.py, so nothing here changes headless output.
 """
+import json
 import math
 import os
 import random
 import time
 import unicodedata
 
+from direct.gui.DirectGui import DGG, DirectButton, DirectFrame, DirectSlider
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import (AmbientLight, DirectionalLight, Filename, Fog, KeyboardButton,
-                          MouseButton, PointLight, TextNode, TransparencyAttrib, Vec4)
+from panda3d.core import (AmbientLight, CullFaceAttrib, DirectionalLight, Filename, Fog, KeyboardButton,
+                          MouseButton, Point2, Point3, PointLight, TextNode, TransparencyAttrib)
 
 from . import config as C
 from . import meshes
-from .sim import InputState, Simulation, world_move, xz_dist
+from .campaign import Campaign
+from .settings import Settings
+from .sim import InputState, Simulation, xz_dist
+from .world import ground_height
 
 T = C.TUNING
-WARM = (1.0, 0.72, 0.32, 1)
-DIM = (0.28, 0.22, 0.38, 1)
-INK = (0.08, 0.02, 0.12, 0.88)
+PAL = {k: C.hex_rgb(v) for k, v in C.PALETTE.items()}
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SOUND_DIR = os.path.join(ROOT, "assets", "sounds")
+SFX = ("pickup", "lantern_lit", "pulse", "hit", "jump", "dash", "win", "lose", "shade_spawn", "countdown", "wind")
+EVENT_SFX = {"mote_picked": "pickup", "lantern_lit": "lantern_lit", "pulse": "pulse", "player_hit": "hit",
+             "dash": "dash", "shade_spawned": "shade_spawn"}
 FONTS = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
     "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial Unicode.ttf",
     "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/segoeui.ttf",
 ]
+TEXT = PAL["ui_text"]
+GOLD = PAL["gold"]
+DANGER = PAL["ui_danger"]
 
 
 def P(v, lift=0.0):
@@ -40,13 +50,47 @@ def ascii_vi(s):
     return "".join(ch for ch in unicodedata.normalize("NFD", s) if unicodedata.category(ch) != "Mn")
 
 
-class LanternGame(ShowBase):
-    def __init__(self, seed=None, scenario=None, autostart=False):
+class Autopilot:
+    """Deterministic bot used by the FPS probe, screenshots and the demo: collect, deposit, pulse."""
+
+    def __init__(self, seed=0):
+        self.rng = random.Random(seed)
+        self.t = 0
+
+    def __call__(self, sim):
+        i = InputState()
+        pl = sim.player
+        self.t += 1
+        unlit = [l for l in sim.lanterns if not l["lit"]]
+        go_lantern = unlit and (pl["carried"] >= sim.capacity() or (not sim.motes and pl["carried"] > 0))
+        if go_lantern:
+            tgt = min(unlit, key=lambda l: xz_dist(l["pos"], pl["pos"]))["pos"]
+        elif sim.motes:
+            tgt = min(sim.motes, key=lambda m: xz_dist(m["pos"], pl["pos"]))["pos"]
+        else:
+            tgt = None
+        if tgt is not None:
+            dx, dz = tgt[0] - pl["pos"][0], tgt[2] - pl["pos"][2]
+            d = math.hypot(dx, dz)
+            if d > 0.3:
+                i.move = (dx / d, dz / d)
+        i.interact = self.t % 20 < 10
+        near = any(xz_dist(s["pos"], pl["pos"]) < 4 and s["state"] in ("chase", "wander") for s in sim.shades)
+        i.pulse = near and self.t % 30 < 15
+        i.jump = self.rng.random() < 0.01
+        return i
+
+
+class Game(ShowBase):
+    def __init__(self, seed=None, autoplay=False):
         ShowBase.__init__(self)
         self.disableMouse()
-        self.setBackgroundColor(0.03, 0.025, 0.07, 1)
+        self.setBackgroundColor(*PAL["sky"])
         self.render.setShaderAuto()
-        self.fixed_seed, self.scenario = seed, scenario
+        self.fixed_seed = seed
+        self.autoplay = Autopilot(seed or 0) if autoplay else None
+        self.settings = Settings.load()
+        self.campaign = Campaign()
         self.font = None
         for f in FONTS:
             if os.path.exists(f):
@@ -54,108 +98,205 @@ class LanternGame(ShowBase):
                 if font and font.isValid():
                     self.font = font
                     break
-        self._build_static_world()
+        self.sim = None
+        self.world_np = None
+        self.dyn = None
+        self.mode = "menu"
+        self.cam_yaw = 0.0
+        self.attempt = 0
+        self.end_timer = None
+        self.last_mouse_x = None
+        self.frame_hook = None
+        self.flash = 0.0
+        self.settings_back = "menu"
+        self.current_panel = None
+        self._setup_lights()
+        self._setup_audio()
         self._build_hud()
-        self.accept("escape", self.userExit)
-        self.accept("r", self.new_game)
-        self.accept("enter", self.start_play)
+        self._build_panels()
+        self.accept("escape", self.toggle_pause)
+        self.accept("p", self.toggle_pause)
+        self.accept("enter", self._on_enter)
         self.taskMgr.add(self._update, "update")
-        self.new_game()
-        if autostart:
-            self.start_play()
+        self.show_panel("menu")
 
-    # ------------------------------------------------------------ text helper
+    # ------------------------------------------------------------ helpers
+    def tr(self, s):
+        return s if self.font else ascii_vi(s)
+
     def text(self, s, **kw):
-        if self.font is None:
-            s = ascii_vi(s)
-        else:
+        if self.font:
             kw.setdefault("font", self.font)
-        return OnscreenText(text=s, mayChange=True, **kw)
+        kw.setdefault("fg", TEXT)
+        kw.setdefault("shadow", (0, 0, 0, 0.8))
+        return OnscreenText(text=self.tr(s), mayChange=True, **kw)
 
     def set_text(self, node, s):
-        node.setText(s if self.font else ascii_vi(s))
+        node.setText(self.tr(s))
 
-    # ------------------------------------------------------------ world
-    def _build_static_world(self):
+    def _btn(self, parent, label, cmd, pos, scale=0.065, width=9):
+        return DirectButton(parent=parent, text=self.tr(label), command=cmd, pos=pos, scale=scale,
+                            text_font=self.font, text_fg=TEXT, frameColor=(0.16, 0.2, 0.38, 0.95),
+                            frameSize=(-width / 2, width / 2, -0.55, 1.05), relief=DGG.FLAT,
+                            text_shadow=(0, 0, 0, 0.6))
+
+    # ------------------------------------------------------------ audio
+    def _setup_audio(self):
+        self.sfx = {}
+        for name in SFX:
+            path = os.path.join(SOUND_DIR, name + ".wav")
+            if os.path.exists(path):
+                self.sfx[name] = self.loader.loadSfx(Filename.fromOsSpecific(path).getFullpath())
+        path = os.path.join(SOUND_DIR, "music.wav")
+        self.music = self.loader.loadMusic(Filename.fromOsSpecific(path).getFullpath()) if os.path.exists(path) else None
+        if self.music:
+            self.music.setLoop(True)
+            self.music.play()
+        self.apply_volume()
+
+    def apply_volume(self):
+        v = self.settings["volume"]
+        for m in self.sfxManagerList:
+            m.setVolume(v)
+        if self.musicManager:
+            self.musicManager.setVolume(v * 0.6)
+
+    def play(self, name):
+        s = self.sfx.get(name)
+        if s:
+            s.play()
+
+    # ------------------------------------------------------------ lights
+    def _setup_lights(self):
         r = self.render
-        amb = AmbientLight("amb")
-        amb.setColor((0.22, 0.2, 0.34, 1))
-        r.setLight(r.attachNewNode(amb))
+        self.amb = AmbientLight("amb")
+        r.setLight(r.attachNewNode(self.amb))
         moon = DirectionalLight("moon")
-        moon.setColor((0.35, 0.38, 0.6, 1))
+        moon.setColor((0.42, 0.46, 0.68, 1))
         mnp = r.attachNewNode(moon)
-        mnp.setHpr(30, -50, 0)
+        mnp.setHpr(30, -55, 0)
         r.setLight(mnp)
         fog = Fog("fog")
-        fog.setColor(0.06, 0.035, 0.1)
-        fog.setExpDensity(0.016)
+        fog.setColor(*PAL["fog"][:3])
+        fog.setExpDensity(0.012)
         r.setFog(fog)
+        self.set_ambient(0, 1)
 
-        island = meshes.cylinder(C.ISLAND_RADIUS, 3.0, 64)
-        island.reparentTo(r)
-        island.setZ(-3.0)
-        island.setColor(0.16, 0.24, 0.2, 1)
-        rim = meshes.cone(C.ISLAND_RADIUS, 14.0, 64)
-        rim.reparentTo(r)
-        rim.setP(180)
-        rim.setZ(-3.0)
-        rim.setColor(0.18, 0.14, 0.2, 1)
-        sea = meshes.cylinder(400, 0.1, 64)
-        sea.reparentTo(r)
-        sea.setZ(-9)
-        sea.setColor(0.22, 0.17, 0.32, 1)
+    def set_ambient(self, lit, total):
+        i = C.ambient_intensity(lit, total)
+        self.amb.setColor((i, i, i, 1))
+        self.ambient_value = i
 
-        rng = random.Random(1234)   # decoration only, independent of the game seed
-        lan_pos = [l["pos"] for l in Simulation(0, {"random_motes": False, "random_shades": False}).lanterns]
-        for _ in range(26):
-            a, d = rng.uniform(0, 2 * math.pi), rng.uniform(8, C.ISLAND_RADIUS - 1.5)
-            p = (d * math.sin(a), 0, d * math.cos(a))
-            if any(xz_dist(p, l) < 6 for l in lan_pos):
+    # ------------------------------------------------------------ world building
+    def _island(self, parent, center, radius, top=0.0):
+        g = meshes.cylinder(radius, 3.0, 72)
+        g.reparentTo(parent)
+        g.setPos(center[0], center[1], top - 3.0)
+        g.setColor(*PAL["grass"])
+        sand = meshes.ring(radius - 1.8, radius, 72)
+        sand.reparentTo(parent)
+        sand.setPos(center[0], center[1], top + 0.02)
+        sand.setColor(*PAL["sand"])
+        under = meshes.cone(radius, radius * 0.45, 48)
+        under.reparentTo(parent)
+        under.setP(180)
+        under.setPos(center[0], center[1], top - 3.0)
+        under.setColor(0.2, 0.17, 0.24, 1)
+
+    def _build_world(self, night):
+        if self.world_np:
+            self.world_np.removeNode()
+        w = self.world_np = self.render.attachNewNode("world")
+        sea = meshes.cylinder(500, 0.1, 64)
+        sea.reparentTo(w)
+        sea.setZ(-14)
+        sea.setColor(*PAL["cloud_sea"])
+        if night == 1:
+            self._island(w, (0, 0), C.N1_RADIUS)
+        elif night == 2:
+            for c in C.N2_ISLANDS:
+                self._island(w, c, C.N2_RADIUS)
+            x0, x1, z0, z1 = C.N2_BRIDGE
+            bridge = meshes.box(x0, x1, z0, z1, -0.4, 0.0)
+            bridge.reparentTo(w)
+            bridge.setColor(*PAL["wood"])
+            for i in range(10):
+                plank = meshes.box(x0 + i * 1.8, x0 + i * 1.8 + 0.12, z0, z1, 0.0, 0.04)
+                plank.reparentTo(w)
+                plank.setColor(0.32, 0.22, 0.14, 1)
+        else:
+            self._island(w, (0, 0), C.N3_RADIUS)
+            t_in, t_out, t_h = C.N3_TIER1
+            tier1 = meshes.annulus_sector(t_in, t_out, 0, 180, t_h, 36)
+            tier1.reparentTo(w)
+            tier1.setColor(0.26, 0.5, 0.43, 1)
+            tier2 = meshes.cylinder(C.N3_TIER2[0], C.N3_TIER2[1], 48)
+            tier2.reparentTo(w)
+            tier2.setColor(0.3, 0.55, 0.47, 1)
+            top, foot, width = C.N3_RAMP
+            hw = width / 2
+            for deg in C.N3_RAMPS:
+                a = math.radians(deg)
+                ux, uy, vx, vy = math.cos(a), math.sin(a), -math.sin(a), math.cos(a)
+                ramp = meshes.wedge((foot * ux - hw * vx, foot * uy - hw * vy), (foot * ux + hw * vx, foot * uy + hw * vy),
+                                    (top * ux - hw * vx, top * uy - hw * vy), (top * ux + hw * vx, top * uy + hw * vy),
+                                    t_h)
+                ramp.reparentTo(w)
+                ramp.setColor(*PAL["wood"])
+            tower = meshes.cylinder(C.N3_TOWER_R, C.N3_TOWER_H, 24)
+            tower.reparentTo(w)
+            tower.setZ(C.N3_TIER2[1])
+            tower.setColor(0.55, 0.45, 0.35, 1)
+            roof = meshes.cone(2.8, 2.2, 24)
+            roof.reparentTo(w)
+            roof.setZ(C.N3_TIER2[1] + C.N3_TOWER_H)
+            roof.setColor(0.5, 0.16, 0.14, 1)
+            bell = meshes.cone(1.0, 1.2, 16)
+            bell.reparentTo(w)
+            bell.setZ(C.N3_TIER2[1] + C.N3_TOWER_H - 1.0)
+            bell.setColor(*GOLD)
+        for pad in C.NIGHTS[night]["pads"]:
+            d = meshes.cylinder(1.0, 0.12, 24)
+            d.reparentTo(w)
+            d.setPos(*P(pad["pos"]))
+            d.setColor(*GOLD)
+            d.setLightOff()
+        rng = random.Random(1234 + night)   # decoration only, independent of the game seed
+        nd = C.NIGHTS[night]
+        for _ in range(40):
+            base = rng.choice(nd["mote_points"])
+            p = [base[0] + rng.uniform(-6, 6), 0, base[2] + rng.uniform(-6, 6)]
+            if ground_height(night, p[0], p[2]) != 0.0:
                 continue
-            if rng.random() < 0.55:
-                tree = r.attachNewNode("tree")
-                trunk = meshes.cylinder(0.18, 1.0, 8)
-                trunk.reparentTo(tree)
-                trunk.setColor(0.25, 0.17, 0.14, 1)
-                top = meshes.cone(rng.uniform(0.9, 1.4), rng.uniform(2.0, 3.2), 10)
-                top.reparentTo(tree)
-                top.setZ(0.9)
-                top.setColor(0.1, 0.22 + rng.random() * 0.08, 0.2, 1)
-                tree.setPos(*P(p))
-            else:
-                rock = meshes.sphere(rng.uniform(0.4, 0.9), 8, 5)
-                rock.reparentTo(r)
-                rock.setScale(1, rng.uniform(0.7, 1.3), 0.6)
-                rock.setPos(*P(p))
-                rock.setColor(0.25, 0.23, 0.3, 1)
-        stars = r.attachNewNode("stars")
-        for _ in range(140):
-            a, e = rng.uniform(0, 2 * math.pi), rng.uniform(0.25, 1.3)
-            s = meshes.sphere(rng.uniform(0.6, 1.3), 4, 3)
-            s.reparentTo(stars)
-            s.setPos(300 * math.cos(e) * math.cos(a), 300 * math.cos(e) * math.sin(a), 300 * math.sin(e))
-            s.setColor(1, 0.95, 0.8, 1)
-        stars.setLightOff()
-        stars.setFogOff()
-        stars.flattenStrong()
+            if any(xz_dist(p, l) < 7 for l in nd["lanterns"]) or any(xz_dist(p, m) < 2 for m in nd["mote_points"]) \
+                    or any(xz_dist(p, pd["pos"]) < 3 for pd in nd["pads"]) or abs(p[2]) < 3 and 20 < p[0] < 50:
+                continue
+            tree = w.attachNewNode("tree")
+            trunk = meshes.cylinder(0.18, 1.0, 8)
+            trunk.reparentTo(tree)
+            trunk.setColor(*PAL["wood"])
+            crown = meshes.cone(rng.uniform(0.9, 1.4), rng.uniform(2.0, 3.2), 10)
+            crown.reparentTo(tree)
+            crown.setZ(0.9)
+            crown.setColor(0.12, 0.3, 0.25, 1)
+            tree.setPos(*P(p))
+        w.flattenStrong()
 
     def _build_dynamic(self):
-        if hasattr(self, "dyn"):
-            self.render.clearLight(self.player_light_np)
-            for l in getattr(self, "lan_lights", []):
+        if self.dyn:
+            for l in self.lan_lights:
                 self.render.clearLight(l)
+            self.render.clearLight(self.player_light_np)
             self.dyn.removeNode()
         self.dyn = self.render.attachNewNode("dynamic")
         sim = self.sim
-
-        self.lan_nodes = {}
-        self.lan_lights = []
+        self.lan_nodes, self.lan_lights = {}, []
         for lan in sim.lanterns:
             root = self.dyn.attachNewNode("lantern-" + lan["id"])
             root.setPos(*P(lan["pos"]))
             pole = meshes.cylinder(0.12, 3.0, 10)
             pole.reparentTo(root)
-            pole.setColor(0.3, 0.22, 0.18, 1)
+            pole.setColor(*PAL["wood"])
             roof = meshes.cone(0.85, 0.6, 12)
             roof.reparentTo(root)
             roof.setZ(3.75)
@@ -164,164 +305,419 @@ class LanternGame(ShowBase):
             body.reparentTo(root)
             body.setZ(3.3)
             body.setScale(1, 1, 1.15)
-            body.setLightOff()
-            # creative: faint ring showing the shade-free safe zone
-            safe = meshes.ring(T["safe_radius"] - 0.12, T["safe_radius"], 64)
+            core = meshes.sphere(0.35, 10, 8)
+            core.reparentTo(root)
+            core.setZ(3.3)
+            core.setColor(*PAL["lantern_core"])
+            core.setLightOff()
+            safe = meshes.ring(T["safe_radius"] - 0.15, T["safe_radius"], 72)
             safe.reparentTo(root)
-            safe.setZ(0.03)
+            safe.setZ(0.04)
             safe.setTwoSided(True)
             safe.setLightOff()
             safe.setTransparency(TransparencyAttrib.MAlpha)
+            safe.setColor(1.0, 0.72, 0.3, 0.5)
             pl = PointLight("pl-" + lan["id"])
             pl.setColor((1.6, 1.0, 0.45, 1))
             pl.setAttenuation((1, 0, 0.012))
             plnp = root.attachNewNode(pl)
             plnp.setZ(3.3)
             self.lan_lights.append(plnp)
-            self.lan_nodes[lan["id"]] = {"root": root, "body": body, "safe": safe, "light": plnp, "lit": None,
-                                         "deposit": None}
+            self.lan_nodes[lan["id"]] = {"root": root, "body": body, "core": core, "safe": safe, "light": plnp,
+                                         "state": None}
 
-        # Mây: cloak, head, conical leaf hat, small lantern
         self.player_np = self.dyn.attachNewNode("may")
         body = meshes.cone(0.5, 1.25, 16)
         body.reparentTo(self.player_np)
-        body.setColor(0.25, 0.42, 0.75, 1)
-        head = meshes.sphere(0.3, 12, 8)
+        body.setColor(*PAL["may_cloak"])
+        scarf = meshes.cylinder(0.3, 0.14, 14)
+        scarf.reparentTo(self.player_np)
+        scarf.setZ(1.05)
+        scarf.setColor(*PAL["may_scarf"])
+        head = meshes.sphere(0.28, 12, 8)
         head.reparentTo(self.player_np)
         head.setZ(1.38)
         head.setColor(0.95, 0.8, 0.65, 1)
         hat = meshes.cone(0.78, 0.5, 18)
         hat.reparentTo(self.player_np)
         hat.setZ(1.55)
-        hat.setColor(0.45, 0.62, 0.25, 1)
-        stick = meshes.cylinder(0.03, 0.5, 6)
-        stick.reparentTo(self.player_np)
-        stick.setPos(0.45, 0.15, 0.7)
-        stick.setColor(0.3, 0.2, 0.15, 1)
+        hat.setColor(0.62, 0.66, 0.36, 1)
         self.hand_lantern = meshes.sphere(0.14, 10, 6)
         self.hand_lantern.reparentTo(self.player_np)
         self.hand_lantern.setPos(0.45, 0.15, 0.62)
         self.hand_lantern.setLightOff()
         plight = PointLight("may-light")
-        plight.setColor((0.9, 0.6, 0.3, 1))
         plight.setAttenuation((1, 0, 0.08))
-        self.player_light_np = self.hand_lantern.attachNewNode(plight)
         self.player_light = plight
+        self.player_light_np = self.hand_lantern.attachNewNode(plight)
         self.render.setLight(self.player_light_np)
-        # creative: compass arrow to nearest unlit lantern
         self.compass = meshes.cone(0.18, 0.6, 8)
         self.compass.reparentTo(self.dyn)
         self.compass.setLightOff()
-        self.compass.setColor(*WARM)
+        self.compass.setColor(*GOLD)
 
-        self.mote_nodes = {}
-        for m in sim.motes:
-            self._add_mote(m)
-        self.shade_nodes = {}
+        self.mote_nodes, self.shade_nodes, self.drifter_nodes, self.charm_nodes = {}, {}, {}, {}
+        for c in sim.charms:
+            root = self.dyn.attachNewNode("charm-" + c["id"])
+            rim = meshes.box(-0.32, 0.32, -0.03, 0.03, -0.45, 0.45)
+            rim.reparentTo(root)
+            rim.setColor(*GOLD)
+            paper = meshes.box(-0.26, 0.26, -0.05, 0.05, -0.39, 0.39)
+            paper.reparentTo(root)
+            paper.setColor(*PAL["charm"])
+            root.setLightOff()
+            self.charm_nodes[c["id"]] = root
+        deco = random.Random(99)
+        self.leaves = []
+        for _ in range(24):
+            leaf = meshes.box(-0.12, 0.12, -0.02, 0.02, -0.06, 0.06)
+            leaf.reparentTo(self.dyn)
+            leaf.setColor(0.5, 0.7, 0.3, 1)
+            leaf.hide()
+            self.leaves.append([leaf, deco.uniform(0, 6.28), deco.uniform(3, 9), deco.uniform(0.5, 3)])
         self.effects = []
+        self._sync_entities(0.0)
 
     def _add_mote(self, m):
-        n = meshes.sphere(0.13, 8, 6)
-        n.reparentTo(self.dyn)
-        n.setLightOff()
-        n.setColor(1.0, 0.92, 0.45, 1)
-        n.setPos(*P(m, 0.6))
-        n.setPythonTag("phase", (m[0] * 0.37 + m[2] * 0.71) % 6.28)
-        self.mote_nodes[id(m)] = n
+        root = self.dyn.attachNewNode("mote")
+        core = meshes.sphere(0.11, 8, 6)
+        core.reparentTo(root)
+        core.setColor(*PAL["mote_core"])
+        glow = meshes.sphere(0.24, 10, 6)
+        glow.reparentTo(root)
+        glow.setColor(PAL["mote_glow"][0], PAL["mote_glow"][1], PAL["mote_glow"][2], 0.35)
+        glow.setTransparency(TransparencyAttrib.MAlpha)
+        root.setLightOff()
+        root.setPythonTag("phase", (m["pos"][0] * 0.37 + m["pos"][2] * 0.71) % 6.28)
+        self.mote_nodes[m["id"]] = root
 
     def _add_shade(self, s):
         root = self.dyn.attachNewNode("shade-" + s["id"])
+        rim = meshes.sphere(0.95, 14, 10)
+        rim.reparentTo(root)
+        rim.setScale(1, 1, 1.25)
+        rim.setAttrib(CullFaceAttrib.makeReverse())
+        rim.setColor(*PAL["shade_rim"])
+        rim.setLightOff()
         blob = meshes.sphere(0.85, 14, 10)
         blob.reparentTo(root)
         blob.setScale(1, 1, 1.25)
-        blob.setTransparency(TransparencyAttrib.MAlpha)
-        blob.setColor(*INK)
+        eyes = []
         for dx in (-0.28, 0.28):
             eye = meshes.sphere(0.11, 6, 4)
             eye.reparentTo(root)
-            eye.setPos(dx, 0.72, 0.25)
+            eye.setPos(dx, 0.74, 0.25)
             eye.setLightOff()
-            eye.setColor(0.85, 0.55, 1.0, 1)
-        self.shade_nodes[s["id"]] = (root, blob)
+            eye.setColor(*PAL["shade_rim"])
+            eyes.append(eye)
+        self.shade_nodes[s["id"]] = (root, blob, rim, eyes)
+
+    def _add_drifter(self, d):
+        root = self.dyn.attachNewNode("drifter-" + d["id"])
+        segs = []
+        for _ in range(5):
+            seg = meshes.box(-0.25, 0.25, -0.03, 0.03, -0.12, 0.12)
+            seg.reparentTo(root)
+            seg.setColor(PAL["drifter"][0], PAL["drifter"][1], PAL["drifter"][2], 0.85)
+            seg.setTransparency(TransparencyAttrib.MAlpha)
+            segs.append(seg)
+        root.setLightOff()
+        self.drifter_nodes[d["id"]] = (root, segs)
 
     # ------------------------------------------------------------ HUD
     def _build_hud(self):
-        tl, tr = self.a2dTopLeft, self.a2dTopRight
-        self.hud_left = self.text("", parent=tl, pos=(0.06, -0.1), scale=0.06, fg=(1, 0.9, 0.7, 1),
-                                  align=TextNode.ALeft, shadow=(0, 0, 0, 0.8))
-        self.hud_right = self.text("", parent=tr, pos=(-0.06, -0.1), scale=0.06, fg=(1, 0.9, 0.7, 1),
-                                   align=TextNode.ARight, shadow=(0, 0, 0, 0.8))
-        self.hud_hint = self.text("WASD di chuyển · ←/→ hoặc chuột phải xoay camera · Space nhảy · "
-                                  "E gửi sáng · Q xung sáng · R chơi lại",
-                                  parent=self.a2dBottomCenter, pos=(0, 0.06), scale=0.045,
-                                  fg=(0.85, 0.8, 0.95, 0.9), shadow=(0, 0, 0, 0.8))
-        self.banner = self.text("", pos=(0, 0.25), scale=0.1, fg=WARM, shadow=(0, 0, 0, 1))
-        self.sub = self.text("", pos=(0, 0.1), scale=0.06, fg=(0.95, 0.9, 1, 1), shadow=(0, 0, 0, 1))
+        tl, tr, tc = self.a2dTopLeft, self.a2dTopRight, self.a2dTopCenter
+        self.h_flames = self.text("", parent=tl, pos=(0.06, -0.11), scale=0.07, fg=DANGER, align=TextNode.ALeft)
+        self.h_timer = self.text("", parent=tc, pos=(0, -0.12), scale=0.085, fg=TEXT)
+        self.h_right = self.text("", parent=tr, pos=(-0.06, -0.1), scale=0.06, fg=GOLD, align=TextNode.ARight)
+        self.h_prompt = self.text("", parent=self.aspect2d, pos=(0, -0.55), scale=0.06, fg=TEXT)
+        self.h_warn = self.text("", parent=self.aspect2d, pos=(0, 0.62), scale=0.06, fg=DANGER)
+        self.h_cells = []
+        for i in range(10):
+            cell = DirectFrame(parent=self.a2dBottomCenter, frameColor=(0.15, 0.15, 0.22, 0.85),
+                               frameSize=(-0.032, 0.032, -0.032, 0.032), pos=(-0.405 + i * 0.09, 0, 0.12))
+            self.h_cells.append(cell)
+        self.h_carry = self.text("", parent=self.a2dBottomCenter, pos=(0, 0.19), scale=0.05, fg=PAL["mote_glow"])
+        self.h_cd = {}
+        for i, (key, label) in enumerate((("dash", "Lướt"), ("pulse", "Tỏa Sáng"))):
+            box = DirectFrame(parent=self.a2dBottomRight, frameColor=(0.15, 0.2, 0.38, 0.9),
+                              frameSize=(-0.09, 0.09, -0.09, 0.09), pos=(-0.42 + i * 0.22, 0, 0.22))
+            fill = DirectFrame(parent=box, frameColor=(0.05, 0.05, 0.08, 0.75), frameSize=(-0.09, 0.09, -0.09, -0.09))
+            lab = self.text(label, parent=box, pos=(0, -0.15), scale=0.05)
+            sec = self.text("", parent=box, pos=(0, -0.015), scale=0.06)
+            self.h_cd[key] = (box, fill, lab, sec)
+        self.h_arrow = self.text("▲", parent=self.aspect2d, scale=0.09, fg=GOLD)
+        self.h_hint = self.text("WASD di chuyển · ←/→, chuột phải: camera · Space nhảy · Shift lướt · "
+                                "E nạp sáng · Q tỏa sáng · Esc/P tạm dừng",
+                                parent=self.a2dBottomLeft, pos=(0.05, 0.03), scale=0.05, align=TextNode.ALeft,
+                                fg=(0.85, 0.82, 0.9, 0.85))
+        self.hud_nodes = [self.h_flames, self.h_timer, self.h_right, self.h_prompt, self.h_warn, self.h_carry,
+                          self.h_arrow, self.h_hint] + self.h_cells + [v[0] for v in self.h_cd.values()]
+        self.show_hud(False)
 
-    def _hud(self):
+    def show_hud(self, on):
+        for n in self.hud_nodes:
+            n.show() if on else n.hide()
+
+    def _hud(self, now):
         sim, pl = self.sim, self.sim.player
+        self.set_text(self.h_flames, "♥ " * pl["flames"] if self.font else "Lua: %d" % pl["flames"])
         t = max(0.0, sim.time_left_s)
-        cd = pl["pulse_cd"]
-        self.set_text(self.hud_left, "Lửa: %s%s\nĐom đóm: %d/%d\nĐèn lớn: %d/%d\nXung sáng: %s" % (
-            "♥ " * pl["flames"] if self.font else "*" * pl["flames"], "" if pl["flames"] else "-",
-            pl["carried"], T["carry_capacity"], sim.lit_count, len(sim.lanterns),
-            "sẵn sàng" if cd <= 0 and pl["carried"] >= T["pulse_cost"] else
-            ("%.1fs" % cd if cd > 0 else "cần đom đóm")))
-        self.set_text(self.hud_right, "Điểm: %d\nĐêm 1 – Đảo Bến\n%02d:%02d" % (sim.score, int(t) // 60, int(t) % 60))
+        secs = int(math.ceil(t - 1e-9))
+        self.set_text(self.h_timer, "%02d:%02d" % (secs // 60, secs % 60))
+        if t <= 30:
+            self.h_timer.setFg(DANGER)
+            self.h_timer.setAlphaScale(1.0 if int(now * 3) % 2 == 0 else 0.25)
+        else:
+            self.h_timer.setFg(TEXT)
+            self.h_timer.setAlphaScale(1.0)
+        self.set_text(self.h_right, "Đèn %d/%d\nĐiểm %d" % (sim.lit_count, len(sim.lanterns),
+                                                           self.campaign.total + sim.score))
+        for i, cell in enumerate(self.h_cells):
+            on = i < min(pl["carried"], 10)
+            g = PAL["mote_glow"]
+            cell["frameColor"] = (g[0], g[1], g[2], 1) if on else (0.15, 0.15, 0.22, 0.85)
+        self.set_text(self.h_carry, "Đom đóm %d/%d" % (pl["carried"], sim.capacity()))
+        for key, total, cur in (("dash", C.DASH_CD_TICKS, pl["dash_cd"]), ("pulse", C.PULSE_CD_TICKS, pl["pulse_cd"])):
+            box, fill, _, sec = self.h_cd[key]
+            frac = 0.0 if (key == "dash" and pl["charm"] > 0) else cur / float(total)
+            fill["frameSize"] = (-0.09, 0.09, -0.09, -0.09 + 0.18 * frac)
+            need = key == "pulse" and pl["carried"] < T["pulse_cost"]
+            self.set_text(sec, "%.1f" % (cur / 60.0) if frac > 0 else ("×" if need else ""))
+        near = [l for l in sim.lanterns if not l["lit"] and xz_dist(l["pos"], pl["pos"]) <= T["interact_radius"]]
+        if near and sim.alive():
+            lan = min(near, key=lambda l: xz_dist(l["pos"], pl["pos"]))
+            self.set_text(self.h_prompt, "E — Nạp ánh sáng (%d/%d)" % (lan["deposited"], T["lantern_cost"]))
+        else:
+            self.set_text(self.h_prompt, "")
+        self.set_text(self.h_warn, "Gió sắp thổi!" if sim.wind["warn"] else ("Gió mạnh!" if sim.wind["active"] else ""))
+        self._offscreen_arrow()
+
+    def _offscreen_arrow(self):
+        sim, pl = self.sim, self.sim.player
+        unlit = [l for l in sim.lanterns if not l["lit"]]
+        if not unlit:
+            self.h_arrow.hide()
+            return
+        tgt = min(unlit, key=lambda l: xz_dist(l["pos"], pl["pos"]))
+        p = self.cam.getRelativePoint(self.render, Point3(*P(tgt["pos"], 3.3)))
+        p2 = Point2()
+        if p.y > 0 and self.camLens.project(p, p2) and abs(p2.x) < 0.98 and abs(p2.y) < 0.98:
+            self.h_arrow.hide()
+            return
+        dx, dy = p.x, p.z
+        if abs(dx) < 1e-6 and abs(dy) < 1e-6:
+            dy = -1.0
+        n = math.hypot(dx, dy)
+        dx, dy = dx / n, dy / n
+        ar = self.getAspectRatio()
+        k = min((ar - 0.12) / max(abs(dx), 1e-6), 0.82 / max(abs(dy), 1e-6))
+        self.h_arrow.setPos(dx * k, dy * k)
+        self.h_arrow.setR(math.degrees(math.atan2(dx, dy)))
+        self.h_arrow.show()
+
+    # ------------------------------------------------------------ panels
+    def _panel(self, title):
+        f = DirectFrame(parent=self.aspect2d, frameColor=(0.05, 0.07, 0.16, 0.92), frameSize=(-1.0, 1.0, -0.75, 0.75))
+        f.title = self.text(title, parent=f, pos=(0, 0.55), scale=0.11, fg=GOLD)
+        f.hide()
+        return f
+
+    def _build_panels(self):
+        self.panels = {}
+        p = self.panels["menu"] = self._panel("Đảo Đèn Lồng")
+        self.text("Gom đom đóm · thắp Đèn Lồng Lớn · né Bóng Mực", parent=p, pos=(0, 0.4), scale=0.055)
+        self._btn(p, "Bắt đầu", self.new_campaign, (0, 0, 0.18))
+        self._btn(p, "Cài đặt", lambda: self.show_panel("settings", back="menu"), (0, 0, 0.02))
+        self._btn(p, "Thoát", self.userExit, (0, 0, -0.14))
+
+        p = self.panels["intro"] = self._panel("")
+        p.body = self.text("", parent=p, pos=(0, 0.3), scale=0.055, wordwrap=30)
+        self._btn(p, "Vào Đêm (Enter)", self.start_night, (0, 0, -0.5))
+
+        p = self.panels["result"] = self._panel("")
+        p.body = self.text("", parent=p, pos=(0, 0.3), scale=0.065)
+        p.next = self._btn(p, "Đêm kế tiếp", self.next_night, (0, 0, -0.18))
+        p.retry = self._btn(p, "Chơi lại Đêm", self.retry_night, (0, 0, -0.18))
+        self._btn(p, "Về menu", self.to_menu, (0, 0, -0.36))
+
+        p = self.panels["dawn"] = self._panel("Bình Minh")
+        p.body = self.text("", parent=p, pos=(0, 0.3), scale=0.065)
+        self._btn(p, "Về menu", self.to_menu, (0, 0, -0.36))
+
+        p = self.panels["pause"] = self._panel("Tạm dừng")
+        self._btn(p, "Tiếp tục", self.toggle_pause, (0, 0, 0.3))
+        self._btn(p, "Chơi lại Đêm", self.retry_night, (0, 0, 0.14))
+        self._btn(p, "Cài đặt", lambda: self.show_panel("settings", back="pause"), (0, 0, -0.02))
+        self._btn(p, "Về menu", self.to_menu, (0, 0, -0.18))
+
+        p = self.panels["settings"] = self._panel("Cài đặt")
+        self.text("Âm lượng", parent=p, pos=(-0.45, 0.28), scale=0.06, align=TextNode.ARight)
+        p.vol = DirectSlider(parent=p, range=(0, 1), value=self.settings["volume"], pageSize=0.1, scale=0.4,
+                             pos=(0.1, 0, 0.3), command=self._on_settings)
+        self.text("Độ nhạy chuột", parent=p, pos=(-0.45, 0.08), scale=0.06, align=TextNode.ARight)
+        p.sens = DirectSlider(parent=p, range=(0.2, 3.0), value=self.settings["mouse_sensitivity"], pageSize=0.2,
+                              scale=0.4, pos=(0.1, 0, 0.1), command=self._on_settings)
+        p.vals = self.text("", parent=p, pos=(0, -0.1), scale=0.05)
+        self._btn(p, "Lưu và quay lại", self._settings_back, (0, 0, -0.45))
+        self._on_settings()
+
+    def _on_settings(self):
+        p = self.panels.get("settings")
+        if not p or not hasattr(p, "sens"):
+            return
+        self.settings["volume"] = round(float(p.vol["value"]), 2)
+        self.settings["mouse_sensitivity"] = round(float(p.sens["value"]), 2)
+        self.apply_volume()
+        self.set_text(p.vals, "Âm lượng %d%% · Độ nhạy %.2f" % (self.settings["volume"] * 100,
+                                                                self.settings["mouse_sensitivity"]))
+
+    def _settings_back(self):
+        self.settings.save()
+        self.show_panel(self.settings_back or "menu")
+
+    def show_panel(self, name, back=None):
+        if name == "settings":
+            self.settings_back = back
+        for k, p in self.panels.items():
+            p.show() if k == name else p.hide()
+        self.current_panel = name
 
     # ------------------------------------------------------------ flow
-    def new_game(self):
-        seed = self.fixed_seed if self.fixed_seed is not None else int(time.time()) & 0x7FFFFFFF
-        self.sim = Simulation(seed, self.scenario)
+    def _seed(self):
+        base = self.fixed_seed if self.fixed_seed is not None else int(time.time()) & 0xFFFF
+        return base * 10 + self.campaign.night + self.attempt * 100
+
+    def new_campaign(self):
+        self.campaign.reset()
+        self.attempt = 0
+        self.show_intro()
+
+    def show_intro(self):
+        name, line = self.campaign.intro()
+        p = self.panels["intro"]
+        self.set_text(p.title, "Đêm %d — %s" % (self.campaign.night, name))
+        self.set_text(p.body, line)
+        self.mode = "intro"
+        self.show_hud(False)
+        self.show_panel("intro")
+        self.load_night(self.campaign.night)
+
+    def load_night(self, night):
+        self.sim = Simulation(self._seed(), night=night)
         self.inp = InputState()
-        self.cam_yaw = 0.0
         self.acc = 0.0
-        self.running = False
+        self.cam_yaw = 0.0
+        self.end_timer = None
         self.flash = 0.0
-        self.last_mouse_x = None
+        self.last_count = None
+        self._build_world(night)
         self._build_dynamic()
-        self.set_text(self.banner, "Đảo Đèn Lồng")
-        self.set_text(self.sub, "Đêm 1 – Đảo Bến\nGom đom đóm, thắp lại 5 Đèn Lồng Lớn, né Bóng Mực.\n"
-                                "Nhấn Enter để bắt đầu")
-        self._sync(0.0)
+        self.set_ambient(self.sim.lit_count, len(self.sim.lanterns))
 
-    def start_play(self):
-        if self.sim.state == "playing" and not self.running:
-            self.running = True
-            self.set_text(self.banner, "")
-            self.set_text(self.sub, "")
+    def start_night(self):
+        self.show_panel(None)
+        self.show_hud(True)
+        self.mode = "play"
 
+    def retry_night(self):
+        self.attempt += 1
+        self.show_intro()
+
+    def next_night(self):
+        self.campaign.advance()
+        self.attempt = 0
+        self.show_intro()
+
+    def to_menu(self):
+        self.mode = "menu"
+        self.show_hud(False)
+        self.show_panel("menu")
+
+    def toggle_pause(self):
+        if self.mode == "play":
+            self.mode = "paused"
+            self.show_panel("pause")
+        elif self.mode == "paused" and self.current_panel == "pause":
+            self.mode = "play"
+            self.show_panel(None)
+
+    def _on_enter(self):
+        if self.mode == "intro":
+            self.start_night()
+
+    def _night_finished(self):
+        sim = self.sim
+        outcome = self.campaign.night_over(sim.state, sim.score)
+        self.show_hud(False)
+        if outcome == "dawn":
+            p = self.panels["dawn"]
+            self.set_text(p.body, "Ba hòn đảo đã sáng lại!\nTổng điểm: %d" % self.campaign.total)
+            self.mode = "dawn"
+            self.show_panel("dawn")
+            return
+        p = self.panels["result"]
+        won = sim.state == "won"
+        reason = {"all_lit": "Mọi Đèn Lồng Lớn đã sáng", "dawn": "Trời sáng mà đảo vẫn chìm trong sương",
+                  "no_flames": "Ngọn lửa của Mây đã tắt", "dawn_survived": "Giữ được đảo sáng tới bình minh"}
+        self.set_text(p.title, "Đêm %d — %s" % (self.campaign.night, "Thắng" if won else "Thua"))
+        self.set_text(p.body, "%s\nĐiểm Đêm: %d\nTổng điểm: %d" % (reason.get(sim.result_reason, ""), sim.score,
+                                                                  self.campaign.total))
+        p.next.show() if won else p.next.hide()
+        p.retry.hide() if won else p.retry.show()
+        self.mode = "result"
+        self.show_panel("result")
+
+    # ------------------------------------------------------------ main loop
     def _read_input(self, dt):
         down = self.mouseWatcherNode.is_button_down
         k = lambda c: down(KeyboardButton.ascii_key(c))  # noqa: E731
+        sens = self.settings["mouse_sensitivity"]
         turn = (1 if down(KeyboardButton.right()) else 0) - (1 if down(KeyboardButton.left()) else 0)
-        self.cam_yaw += turn * 110.0 * dt
+        self.cam_yaw += turn * 110.0 * dt * sens
         if self.mouseWatcherNode.hasMouse() and down(MouseButton.three()):
             mx = self.mouseWatcherNode.getMouseX()
             if self.last_mouse_x is not None:
-                self.cam_yaw += (mx - self.last_mouse_x) * 180.0
+                self.cam_yaw += (mx - self.last_mouse_x) * 180.0 * sens
             self.last_mouse_x = mx
         else:
             self.last_mouse_x = None
+        i = InputState()
         x = (1 if k("d") else 0) - (1 if k("a") else 0)
         z = (1 if k("w") or down(KeyboardButton.up()) else 0) - (1 if k("s") or down(KeyboardButton.down()) else 0)
-        self.inp.move = (float(x), float(z))
-        self.inp.cam_yaw_deg = self.cam_yaw % 360.0
-        self.inp.jump = down(KeyboardButton.space())
-        self.inp.interact = k("e") or k("f")
-        self.inp.pulse = k("q") or down(MouseButton.one())
+        i.move = (float(x), float(z))
+        i.cam_yaw_deg = self.cam_yaw % 360.0
+        i.jump = down(KeyboardButton.space())
+        i.dash = down(KeyboardButton.shift())
+        i.interact = k("e") or k("f")
+        i.pulse = k("q") or down(MouseButton.one())
+        return i
 
     def feed(self, inp):
-        """Advance one fixed tick with the given input (also used by tools/screenshot.py)."""
-        for ev in self.sim.step(inp):
+        """Advance one fixed tick (also used by tools)."""
+        pl = self.sim.player
+        was_grounded = pl["grounded"]
+        evs = self.sim.step(inp)
+        if was_grounded and not pl["grounded"] and pl["vel"][1] > 0:
+            self.play("jump")
+        for ev in evs:
             self._on_event(ev)
+        t = self.sim.time_left_s
+        if 0 < t <= 10 and int(math.ceil(t)) != self.last_count:
+            self.last_count = int(math.ceil(t))
+            self.play("countdown")
+        if self.sim.wind["warn"] and self.sim.sim_tick % C.WIND_EVERY == C.WIND_EVERY - C.WIND_WARN:
+            self.play("wind")
+        return evs
 
     def _on_event(self, ev):
         name = ev["name"]
+        if name in EVENT_SFX:
+            self.play(EVENT_SFX[name])
         if name == "pulse":
             fx = meshes.ring(0.47, 0.55, 64)
             fx.reparentTo(self.dyn)
-            fx.setPos(*P(self.sim.player["pos"], 0.15))
+            fx.setPos(*P(self.sim.player["pos"], 0.8))
             fx.setLightOff()
             fx.setTwoSided(True)
             fx.setTransparency(TransparencyAttrib.MAlpha)
@@ -336,86 +732,127 @@ class LanternGame(ShowBase):
             fx.setLightOff()
             fx.setTransparency(TransparencyAttrib.MAlpha)
             self.effects.append([fx, 0.0, "burst"])
-        elif name == "shade_spawned":
-            pass
         elif name == "game_over":
-            d = ev["data"]
-            if d["result"] == "won":
-                self.set_text(self.banner, "Đảo Bến đã sáng lại!")
-            elif d["reason"] == "dawn":
-                self.set_text(self.banner, "Trời sáng mà đảo vẫn chìm trong sương...")
-            else:
-                self.set_text(self.banner, "Ngọn lửa của Mây đã tắt...")
-            self.set_text(self.sub, "Điểm: %d\nNhấn R để chơi lại" % self.sim.score)
+            self.play("win" if ev["data"]["result"] == "won" else "lose")
+            self.end_timer = 1.5
 
     def _update(self, task):
         dt = min(globalClock.getDt(), 0.25)  # noqa: F821 (Panda3D builtin)
-        if self.running and self.sim.state == "playing":
-            self._read_input(dt)
-            self.acc += dt
-            while self.acc >= C.DT and self.sim.state == "playing":
-                self.feed(self.inp)
-                self.acc -= C.DT
+        if self.frame_hook:
+            self.frame_hook(dt)
+        if self.sim is None:
+            return task.cont
+        if self.mode == "play":
+            if self.sim.state == "playing":
+                self.acc += dt
+                if self.autoplay is None:
+                    self.inp = self._read_input(dt)
+                while self.acc >= C.DT and self.sim.state == "playing":
+                    if self.autoplay is not None:
+                        self.inp = self.autoplay(self.sim)
+                    self.feed(self.inp)
+                    self.acc -= C.DT
+            elif self.end_timer is not None:
+                self.end_timer -= dt
+                if self.end_timer <= 0:
+                    self.end_timer = None
+                    self._night_finished()
         self._sync(dt)
         return task.cont
 
-    # ------------------------------------------------------------ render sync
-    def _sync(self, dt):
-        sim, pl = self.sim, self.sim.player
-        now = globalClock.getFrameTime()  # noqa: F821
-        self.player_np.setPos(*P(pl["pos"]))
-        wx, wz = world_move(self.inp.move, self.inp.cam_yaw_deg)
-        if wx or wz:
-            self.player_np.setH(-math.degrees(math.atan2(wx, wz)))
-        glow = 0.35 + 0.65 * pl["carried"] / T["carry_capacity"]
-        self.hand_lantern.setColor(1.0, 0.65 + 0.3 * glow, 0.3 * glow, 1)
-        self.hand_lantern.setScale(0.8 + 0.6 * glow)
-        self.player_light.setColor((1.2 * glow, 0.8 * glow, 0.35 * glow, 1))
-        if pl["invuln_t"] > 0:
-            self.player_np.setAlphaScale(0.45 if int(now * 12) % 2 else 1.0)
-        else:
-            self.player_np.setAlphaScale(1.0)
-
-        for lan in sim.lanterns:
-            node = self.lan_nodes[lan["id"]]
-            state = (lan["lit"], lan["deposited"])
-            if (node["lit"], node["deposit"]) != state:
-                node["lit"], node["deposit"] = state
-                f = min(1.0, lan["deposited"] / float(T["lantern_cost"]))
-                if lan["lit"]:
-                    node["body"].setColor(*WARM)
-                    node["safe"].setColor(1.0, 0.75, 0.35, 0.55)
-                    self.render.setLight(node["light"])
-                else:
-                    node["body"].setColor(DIM[0] + 0.5 * f, DIM[1] + 0.35 * f, DIM[2], 1)
-                    node["safe"].setColor(0.7, 0.6, 0.9, 0.22)
-                    self.render.clearLight(node["light"])
-
-        alive = {id(m) for m in sim.motes}
+    def _sync_entities(self, now):
+        sim = self.sim
+        for m in sim.motes:
+            if m["id"] not in self.mote_nodes:
+                self._add_mote(m)
+        alive = {m["id"] for m in sim.motes}
         for key in list(self.mote_nodes):
             if key not in alive:
                 self.mote_nodes.pop(key).removeNode()
         for m in sim.motes:
-            n = self.mote_nodes[id(m)]
+            n = self.mote_nodes[m["id"]]
             ph = n.getPythonTag("phase")
-            n.setZ(0.55 + 0.2 * math.sin(now * 2.2 + ph))
-            n.setScale(0.85 + 0.25 * math.sin(now * 5 + ph))
-
+            n.setPos(*P(m["pos"], 0.55 + 0.2 * math.sin(now * 2.2 + ph)))
+            if m["kind"] == "dropped" and m["ttl"] < 120:
+                n.setAlphaScale(0.4 + 0.6 * (int(now * 8) % 2))
         for s in sim.shades:
             if s["id"] not in self.shade_nodes:
                 self._add_shade(s)
-            root, blob = self.shade_nodes[s["id"]]
-            root.setPos(*P(s["pos"], 0.15 * math.sin(now * 3 + hash(s["id"]) % 7)))
-            root.lookAt(*P(pl["pos"], s["pos"][1]))
-            if s["state"] == "stunned":
-                blob.setColor(0.45, 0.4, 0.6, 0.55)
-                root.setScale(0.8)
+            root, blob, rim, eyes = self.shade_nodes[s["id"]]
+            root.setPos(*P(s["pos"], 0.12 * math.sin(now * 3 + len(s["id"]))))
+            root.lookAt(*P(sim.player["pos"], s["pos"][1]))
+            st = s["state"]
+            blob.setColor(*(PAL["shade_stunned"] if st == "stunned" else PAL["shade_body"]))
+            if st == "spawning":
+                root.setScale(0.35 + 0.65 * (1 - s["t"] / float(C.SHADE_SPAWNING_TICKS)))
             else:
-                blob.setColor(*INK)
-                root.setScale(1.0)
+                root.setScale(0.8 if st == "stunned" else 1.0)
+        for d in sim.drifters:
+            if d["id"] not in self.drifter_nodes:
+                self._add_drifter(d)
+            root, segs = self.drifter_nodes[d["id"]]
+            if d["state"] == "removed":
+                root.hide()
+                continue
+            root.setPos(*P(d["pos"]))
+            for i, seg in enumerate(segs):
+                seg.setPos(-i * 0.45, 0, 0.35 * math.sin(now * 6 - i * 0.9))
+                seg.setR(20 * math.sin(now * 6 - i * 0.9))
+            root.setH(now * 90 % 360)
+        for c in sim.charms:
+            n = self.charm_nodes[c["id"]]
+            if c["available"]:
+                n.show()
+                n.setPos(*P(c["pos"], 1.0 + 0.15 * math.sin(now * 2)))
+                n.setH(now * 60 % 360)
+            else:
+                n.hide()
+
+    def _sync(self, dt):
+        if self.sim is None or self.dyn is None:
+            return
+        sim, pl = self.sim, self.sim.player
+        now = globalClock.getFrameTime()  # noqa: F821
+        self.player_np.setPos(*P(pl["pos"]))
+        fx_, fz_ = pl["facing"]
+        self.player_np.setH(-math.degrees(math.atan2(fx_, fz_)))
+        glow = 0.35 + 0.65 * min(1.0, pl["carried"] / 10.0)
+        self.hand_lantern.setColor(1.0, 0.65 + 0.3 * glow, 0.3 * glow, 1)
+        self.hand_lantern.setScale(0.8 + 0.6 * glow)
+        self.player_light.setColor((1.2 * glow, 0.8 * glow, 0.35 * glow, 1))
+        if pl["dead_wait"] > 0:
+            self.player_np.hide()
+        else:
+            self.player_np.show()
+            self.player_np.setAlphaScale(0.45 if pl["invuln"] > 0 and int(now * 12) % 2 else 1.0)
+
+        changed = False
+        for lan in sim.lanterns:
+            node = self.lan_nodes[lan["id"]]
+            state = (lan["lit"], lan["deposited"])
+            if node["state"] != state:
+                node["state"] = state
+                changed = True
+                if lan["lit"]:
+                    node["body"].setColor(*PAL["lantern_lit"])
+                    node["body"].setLightOff()
+                    node["core"].show()
+                    node["safe"].show()
+                    self.render.setLight(node["light"])
+                else:
+                    f = lan["deposited"] / float(T["lantern_cost"])
+                    off = PAL["lantern_off"]
+                    node["body"].setColor(off[0] + 0.3 * f, off[1] + 0.2 * f, off[2], 1)
+                    node["body"].clearLight()
+                    node["core"].hide()
+                    node["safe"].hide()
+                    self.render.clearLight(node["light"])
+        if changed:
+            self.set_ambient(sim.lit_count, len(sim.lanterns))
+        self._sync_entities(now)
 
         unlit = [l for l in sim.lanterns if not l["lit"]]
-        if unlit and sim.state == "playing":
+        if unlit and sim.state == "playing" and pl["dead_wait"] == 0:
             tgt = min(unlit, key=lambda l: xz_dist(l["pos"], pl["pos"]))
             self.compass.show()
             self.compass.setPos(*P(pl["pos"], 2.45))
@@ -423,6 +860,20 @@ class LanternGame(ShowBase):
             self.compass.setHpr(-ang, -90, 0)
         else:
             self.compass.hide()
+
+        windy = sim.wind["warn"] or sim.wind["active"]
+        a = math.radians(sim.wind["dir_deg"])
+        for leaf in self.leaves:
+            node, ph, r, h = leaf
+            if windy:
+                along = (now * 6 + r * 3) % 16 - 8
+                node.show()
+                node.setPos(pl["pos"][0] + math.cos(a) * along - math.sin(a) * (r - 6) * 0.6,
+                            pl["pos"][2] + math.sin(a) * along + math.cos(a) * (r - 6) * 0.6,
+                            pl["pos"][1] + h + 0.3 * math.sin(now * 4 + ph))
+                node.setHpr(now * 200 + ph * 50, now * 150, 0)
+            else:
+                node.hide()
 
         for fx in list(self.effects):
             fx[1] += dt
@@ -440,14 +891,42 @@ class LanternGame(ShowBase):
 
         if self.flash > 0:
             self.flash = max(0.0, self.flash - dt)
-            self.setBackgroundColor(0.03 + self.flash, 0.025, 0.07 + self.flash * 0.6, 1)
+        sky = PAL["sky"]
+        self.setBackgroundColor(sky[0] + self.flash, sky[1], sky[2] + self.flash * 0.6, 1)
 
         th = math.radians(self.cam_yaw)
-        fx_, fz_ = math.sin(th), math.cos(th)
+        fxc, fzc = math.sin(th), math.cos(th)
         px, py, pz = P(pl["pos"])
-        self.camera.setPos(px - fx_ * 13.0, py - fz_ * 13.0, pz + 7.5)
+        self.camera.setPos(px - fxc * 13.0, py - fzc * 13.0, pz + 7.5)
         self.camera.lookAt(px, py, pz + 1.3)
-        self._hud()
+        if self.mode in ("play", "paused"):
+            self._hud(now)
+
+
+def fps_probe(night, seconds, seed=3):
+    """Run the real client with the autopilot and report frame statistics as JSON."""
+    from panda3d.core import loadPrcFileData
+    loadPrcFileData("", "window-title Dao Den Long (fps probe)\nwin-size 1280 720\nsync-video 0\n")
+    g = Game(seed=seed, autoplay=True)
+    g.campaign.night = night
+    g.show_intro()
+    g.start_night()
+    frames, state = [], {"t": 0.0}
+
+    def hook(dt):
+        state["t"] += dt
+        if state["t"] > 2.0:
+            frames.append(dt)
+        if state["t"] > 2.0 + seconds:
+            n = len(frames)
+            out = {"night": night, "frames": n, "avg_fps": round(n / sum(frames), 1),
+                   "frame_ms_p95": round(sorted(frames)[int(0.95 * (n - 1))] * 1000, 2),
+                   "resolution": "1280x720", "vsync": False}
+            print(json.dumps(out))
+            g.frame_hook = None
+            g.userExit()
+    g.frame_hook = hook
+    g.run()
 
 
 def main(argv=None):
@@ -455,8 +934,12 @@ def main(argv=None):
 
     ap = argparse.ArgumentParser(description="Dao Den Long - 3D client")
     ap.add_argument("--seed", type=int, default=None, help="fixed world seed (default: random each play)")
+    ap.add_argument("--fps-probe", type=float, metavar="SECONDS", help="measure FPS with the autopilot and exit")
+    ap.add_argument("--night", type=int, default=1, choices=(1, 2, 3))
     a = ap.parse_args(argv)
+    if a.fps_probe:
+        fps_probe(a.night, a.fps_probe)
+        return
     from panda3d.core import loadPrcFileData
-    loadPrcFileData("", "window-title Dao Den Long\nwin-size 1280 720\nframebuffer-multisample 1\nmultisamples 4\n"
-                        "sync-video 1\n")
-    LanternGame(seed=a.seed).run()
+    loadPrcFileData("", "window-title Dao Den Long\nwin-size 1280 720\nframebuffer-multisample 1\nmultisamples 4\n")
+    Game(seed=a.seed).run()
