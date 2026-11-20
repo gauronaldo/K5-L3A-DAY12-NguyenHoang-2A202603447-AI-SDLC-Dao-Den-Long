@@ -4,7 +4,7 @@ game.contract.json is checked against TUNING / SCORE by tests/test_headless.py.
 """
 import math
 
-CONTRACT_VERSION = "1.1"
+CONTRACT_VERSION = "1.2"
 TICK_RATE = 60
 DT = 1.0 / TICK_RATE
 
@@ -17,7 +17,7 @@ TUNING = {
     "interact_radius": 2.0,
     "pulse_cost": 3,
     "pulse_radius": 5.0,
-    "night1_duration_s": 300.0,
+    "night1_duration_s": 240.0,
     "flames": 3,
     "invuln_s": 1.5,
     "hit_drop_ratio": 0.5,
@@ -30,16 +30,28 @@ TUNING = {
     "dash_speed": 14.0,
     "dash_duration_s": 0.2,
     "dash_cooldown_s": 1.5,
-    "night2_duration_s": 330.0,
-    "night3_duration_s": 360.0,
+    "night2_duration_s": 270.0,
+    "night3_duration_s": 300.0,
+    # Ticket-03 (contract v1.2)
+    "fuel_max": 100,
+    "fuel_decay_per_s": 1.0,
+    "fuel_per_mote": 10,
+    "relight_cost": 5,
+    "win_ratio": 0.6,
+    "drain_per_s": 5,
+    "low_fuel_threshold": 30,
+    "capacity_max": 20,
 }
 FALL_ENABLED = True
 
-SCORE = {
-    "per_mote": 10,           # per firefly deposited into a lantern
-    "per_lantern": 100,
+SCORE = {                     # Ticket-03 replaces the whole scoring table
+    "per_mote": 5,            # per firefly put into a lantern (light, relight or refuel)
+    "per_lantern": 100,       # first lighting
+    "per_relight": 40,
     "per_stun": 5,
-    "per_second_left": 2,     # floor(time_left_s), only when won
+    "per_stun_draining": 15,  # total for a shade that was draining
+    "per_lit_lantern_dawn": 50,   # + floor(fuel), only when won
+    "per_second_left": 0,     # time bonus removed
     "per_flame_left": 50,     # only when won
 }
 
@@ -96,6 +108,17 @@ WIND_EVERY = 1800
 WIND_TICKS = 300
 WIND_WARN = 120
 WIND_SPEED = 2.0
+# lantern fuel, stored as integer units of 1/60 (Ticket-03 precision advice)
+FUEL_U = 60
+FUEL_MAX_U = TUNING["fuel_max"] * FUEL_U                    # 6000
+LOW_FUEL_U = TUNING["low_fuel_threshold"] * FUEL_U          # 1800
+DECAY_U = int(TUNING["fuel_decay_per_s"])                   # 1 unit per tick
+DRAIN_U = TUNING["drain_per_s"]                             # 5 units per tick
+REFUEL_U = TUNING["fuel_per_mote"] * FUEL_U                 # 600 per firefly
+DRAIN_DIST = 2.0
+DRAIN_CHASE = 6.0
+DRAIN_EVENT_EVERY = 60
+CAPACITY_STEP = 2
 
 
 def polar(r, deg, y=0.0):
