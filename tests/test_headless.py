@@ -47,8 +47,9 @@ class Cli(unittest.TestCase):
         proc, lines = run_cli(*BASE, "--ticks", "1", "--snapshot-every", "1", "--inputs", "{i}",
                               files={"i": {"frames": [{"tick": 0, "move": [0, 1]}]}})
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertEqual(lines[0]["player"]["pos"], [0.0, 0.0, 0.0])
-        self.assertEqual(lines[1]["player"]["pos"], [0.0, 0.0, 0.1])
+        snaps = [l for l in lines if l["type"] == "snapshot"]
+        self.assertEqual(snaps[0]["player"]["pos"], [0.0, 0.0, 0.0])
+        self.assertEqual(snaps[1]["player"]["pos"], [0.0, 0.0, 0.1])
 
     def test_inputs_fields_persist(self):
         frames = {"frames": [{"tick": 0, "move": [1, 0], "cam_yaw_deg": 90}, {"tick": 30, "interact": False}]}
@@ -65,7 +66,7 @@ class Cli(unittest.TestCase):
         proc, lines = run_cli(*BASE, "--ticks", "60", "--scenario", "{s}", "--inputs", "{i}",
                               files={"s": sc, "i": inputs})
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        ev = [l for l in lines if l["type"] == "event"]
+        ev = [l for l in lines if l["type"] == "event" and l["name"] != "night_start"]
         self.assertEqual(ev[0]["name"], "mote_picked")
         self.assertEqual(ev[0]["tick"], 40)  # step k=39 -> state 40: z=4.0, distance to mote = 1.0 <= pickup_radius
         snap0 = lines[0]
@@ -87,7 +88,7 @@ class Cli(unittest.TestCase):
                              {"tick": 90, "move": [-1, 0], "jump": True}, {"tick": 91, "jump": False}]}
         outs = []
         for _ in range(2):
-            proc, lines = run_cli("--seed", "99", "--night", "1", "--out", "{out}", "--ticks", "3000",
+            proc, lines = run_cli("--seed", "99", "--night", "3", "--out", "{out}", "--ticks", "3000",
                                   "--inputs", "{i}", files={"i": inputs})
             self.assertEqual(proc.returncode, 0)
             outs.append(lines)
@@ -115,10 +116,53 @@ class Cli(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
         self.assertTrue(proc.stderr.strip())
 
-    def test_events_dont_include_fall(self):
-        proc, lines = run_cli(*BASE, "--ticks", "600", "--inputs", "{i}",
+    # Phase 1 test "events_dont_include_fall" removed: Ticket-02 enables falling (fall_enabled = true).
+    def test_fall_event_has_lost_field(self):
+        proc, lines = run_cli(*BASE, "--ticks", "900", "--inputs", "{i}",
                               files={"i": {"frames": [{"tick": 0, "move": [1, 0]}]}})
-        self.assertFalse(any(l.get("data", {}).get("by") == "fall" for l in lines))
+        falls = [l for l in lines if l.get("name") == "player_hit" and l["data"]["by"] == "fall"]
+        self.assertTrue(falls)
+        self.assertEqual(set(falls[0]["data"]), {"by", "flames", "dropped", "lost"})
+
+    def test_snapshot_schema_v1_1(self):
+        for night in ("1", "2", "3"):
+            proc, lines = run_cli("--seed", "4", "--night", night, "--out", "{out}", "--ticks", "1500")
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            snap = [l for l in lines if l["type"] == "snapshot"][-1]
+            self.assertEqual(snap["night"], int(night))
+            self.assertEqual(set(snap["wind"]), {"active", "dir_deg"})
+            self.assertTrue({"pos", "vel", "grounded", "invuln", "flames", "carried", "dash_cd_s", "pulse_cd_s",
+                             "charm_s"} <= set(snap["player"]))
+            self.assertIsInstance(snap["player"]["invuln"], bool)
+            for m in snap["motes"]:
+                self.assertEqual(set(m), {"id", "pos", "kind", "ttl_s"})
+            for d in snap["drifters"]:
+                self.assertEqual(set(d), {"id", "pos", "state", "stolen"})
+            for c in snap["charms"]:
+                self.assertEqual(set(c), {"id", "available", "respawn_s"})
+            for sh in snap["shades"]:
+                self.assertIn(sh["state"], ("spawning", "wander", "chase", "recoil", "stunned"))
+            self.assertEqual(lines[1]["name"], "night_start")
+
+    def test_pause_input(self):
+        frames = {"frames": [{"tick": 5, "pause": True}, {"tick": 6, "pause": False},
+                             {"tick": 20, "pause": True}, {"tick": 21, "pause": False}]}
+        proc, lines = run_cli(*BASE, "--ticks", "30", "--snapshot-every", "10", "--inputs", "{i}", files={"i": frames})
+        snaps = {l["tick"]: l for l in lines if l["type"] == "snapshot"}
+        self.assertEqual((snaps[10]["state"], snaps[10]["sim_tick"]), ("paused", 5))
+        self.assertEqual((snaps[30]["state"], snaps[30]["sim_tick"]), ("playing", 15))
+        self.assertEqual([l["name"] for l in lines if l.get("name") in ("paused", "resumed")], ["paused", "resumed"])
+
+    def test_bad_night_exit_2(self):
+        proc, _ = run_cli("--seed", "1", "--night", "4", "--ticks", "10", "--out", "{out}")
+        self.assertEqual(proc.returncode, 2)
+
+    def test_full_night_under_30s(self):
+        import time
+        t0 = time.perf_counter()
+        proc, lines = run_cli("--seed", "9", "--night", "3", "--ticks", "21600", "--out", "{out}")
+        self.assertEqual(proc.returncode, 0)
+        self.assertLess(time.perf_counter() - t0, 30.0)
 
 
 class ContractFile(unittest.TestCase):
@@ -127,7 +171,7 @@ class ContractFile(unittest.TestCase):
         from lantern import config as C
         with open(os.path.join(ROOT, "game.contract.json"), encoding="utf-8") as f:
             gc = json.load(f)
-        self.assertEqual(gc["contract_version"], "1.0")
+        self.assertEqual(gc["contract_version"], C.CONTRACT_VERSION)
         for k, v in C.TUNING.items():
             self.assertEqual(gc["tuning"][k], v, k)
         self.assertEqual(set(gc["tuning"]), set(C.TUNING))
