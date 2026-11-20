@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Play the game: python3 main.py [--seed N]"""
+"""Play: python3 main.py · Bench: python3 main.py --bench --seed 42 --duration 30 --out bench.json
+· Leaderboard: python3 main.py --export-leaderboard out.json"""
 import os
 import sys
 
