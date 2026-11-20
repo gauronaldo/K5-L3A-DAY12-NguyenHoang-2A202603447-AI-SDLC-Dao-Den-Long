@@ -3,22 +3,24 @@ import math
 
 from . import config as C
 
+EPS = 1e-9   # boundaries are inclusive and tolerant to accumulated float error
+
 
 def ground_height(night, x, z):
     """Top surface height at (x, z), or None over the cloud sea."""
     r = math.hypot(x, z)
     if night == 1:
-        return 0.0 if r <= C.N1_RADIUS else None
+        return 0.0 if r <= C.N1_RADIUS + EPS else None
     if night == 2:
         for cx, cz in C.N2_ISLANDS:
-            if math.hypot(x - cx, z - cz) <= C.N2_RADIUS:
+            if math.hypot(x - cx, z - cz) <= C.N2_RADIUS + EPS:
                 return 0.0
         x0, x1, z0, z1 = C.N2_BRIDGE
-        if x0 <= x <= x1 and z0 <= z <= z1:
+        if x0 - EPS <= x <= x1 + EPS and z0 - EPS <= z <= z1 + EPS:
             return 0.0
         return None
     # night 3
-    if r > C.N3_RADIUS:
+    if r > C.N3_RADIUS + EPS:
         return None
     if r <= C.N3_TIER2[0]:
         return C.N3_TIER2[1]
