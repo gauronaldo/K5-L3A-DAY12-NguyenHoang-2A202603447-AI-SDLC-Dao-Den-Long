@@ -22,3 +22,6 @@ Game 3D (Panda3D) + headless theo Test Contract. Python 3.10+.
 - Không sửa tay file trong `docs/proof/`; sinh lại bằng `tools/verify.py`.
 - Test cũ sai vì luật mới: sửa hoặc xoá kèm lý do trong `docs/notes/`, không skip âm thầm.
 - Không xong khi test đỏ (Stop hook sẽ chặn).
+- Client kế thừa `ShowBase`: KHÔNG đặt method trùng tên có sẵn (`restart`, `run`, `start`...) — đã gây crash ở Phase 1.
+- Đổi gì ở client → chạy `python3 tools/screenshot.py` và XEM ảnh, không chỉ đọc log.
+- Mô tả scenario (`req`) phải khớp điều thực sự kiểm tra (đã từng ghi "chạy hết đêm" khi run kết thúc ở tick 726).
