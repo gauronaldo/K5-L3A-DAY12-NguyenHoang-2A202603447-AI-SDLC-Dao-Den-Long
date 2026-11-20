@@ -1,6 +1,7 @@
 # AGENTS.md — Đảo Đèn Lồng
 
-Game 3D (Panda3D) 3 Đêm + headless theo Test Contract **v1.1**. Python 3.10+.
+Game 3D (Panda3D) 3 Đêm + headless theo Test Contract **v1.2**. Python 3.10+.
+Quyết định thiết kế lớn: `docs/adr/`.
 
 ## Lệnh
 - Test nhanh: `python3 tools/verify.py --quick` (unit test, không cần panda3d)
@@ -27,6 +28,10 @@ Game 3D (Panda3D) 3 Đêm + headless theo Test Contract **v1.1**. Python 3.10+.
 - Không sửa tay `docs/proof/`; sinh lại bằng tool.
 - Test cũ sai vì luật mới: sửa/xoá kèm lý do trong `docs/notes/phase-N.md`, không skip âm thầm.
 - Không xong khi test đỏ (Stop hook chặn).
+- Dầu đèn là **số nguyên** `fuel_u` (1/60 đơn vị); không đổi sang float. Luật đèn đi qua `_safe()` / `_accepts()`.
+- Change request thay luật: liệt kê test/scenario bị ảnh hưởng TRƯỚC khi code (bảng §1 trong `phase-N.md`), xoá/sửa kèm lý do.
+- Khi tính tay kỳ vọng, liệt kê mọi thứ trừ/cộng trong cùng tick (hao + hút + châm) — đã từng quên phần hút.
+- Vá file lớn bằng script Python ghi ra file (có `assert` từng đoạn), không dùng heredoc chứa `\\` trong bash.
 - `ShowBase` đã có `restart`, `run`, `start`… — không đặt trùng tên. Font Arial thiếu một số ký tự (✕): dùng ký tự Latin-1.
 - Đổi client → chạy `tools/screenshot.py` và XEM ảnh.
 - Mô tả scenario (`req`) phải khớp điều thực sự kiểm tra; nhớ các cơ chế nền (gió Đêm 3, spawn mặc định) khi dựng scenario.
