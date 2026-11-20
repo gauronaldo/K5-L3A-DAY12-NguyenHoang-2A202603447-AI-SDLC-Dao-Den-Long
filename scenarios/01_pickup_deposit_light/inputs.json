@@ -8,7 +8,7 @@
       ]
     },
     {
-      "tick": 80,
+      "tick": 120,
       "move": [
         0,
         0
@@ -16,7 +16,7 @@
       "interact": true
     },
     {
-      "tick": 81,
+      "tick": 121,
       "interact": false
     }
   ]

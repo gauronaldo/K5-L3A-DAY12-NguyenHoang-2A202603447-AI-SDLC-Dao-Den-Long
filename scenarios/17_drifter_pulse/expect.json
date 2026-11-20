@@ -1,0 +1,47 @@
+{
+  "req": "F1 Toa Sang trung Gio Lac dang chase -> flee khong cuop; dang flee co do -> tha lai (drifter_drop), bien mat sau 120 tick",
+  "why": "pulse o tick 2: D1 cach tam 3.95 m, D2 3.19 m",
+  "ticks": 140,
+  "expect": [
+    {
+      "check": "event",
+      "name": "drifter_drop",
+      "data": {
+        "drifter_id": "D2",
+        "amount": 3
+      },
+      "tick": 2
+    },
+    {
+      "check": "no_event",
+      "name": "drifter_steal"
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "drifters.0.state",
+      "equals": "flee"
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "drifters.0.stolen",
+      "equals": 0
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "motes_active",
+      "equals": 3
+    },
+    {
+      "check": "snapshot",
+      "tick": 130,
+      "path": "drifters.1.state",
+      "equals": "removed"
+    }
+  ],
+  "seed": 1,
+  "night": 2,
+  "snapshot_every": 10
+}

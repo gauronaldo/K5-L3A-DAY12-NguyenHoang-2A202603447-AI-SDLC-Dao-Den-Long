@@ -1,0 +1,54 @@
+{
+  "req": "S12/F4 tam dung: tick tang, sim_tick va logic dung; paused/resumed",
+  "why": "dung o tick 6..20 -> o tick 10 sim_tick = 5; tick 30 sim_tick = 15",
+  "ticks": 30,
+  "expect": [
+    {
+      "check": "event",
+      "name": "paused",
+      "data": {},
+      "tick": 6
+    },
+    {
+      "check": "event",
+      "name": "resumed",
+      "data": {},
+      "tick": 21
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "state",
+      "equals": "paused"
+    },
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "sim_tick",
+      "equals": 5
+    },
+    {
+      "check": "same",
+      "ticks": [
+        5,
+        20
+      ],
+      "path": "shades.0.pos"
+    },
+    {
+      "check": "snapshot",
+      "tick": 30,
+      "path": "sim_tick",
+      "equals": 15
+    },
+    {
+      "check": "snapshot",
+      "tick": 30,
+      "path": "state",
+      "equals": "playing"
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 5
+}

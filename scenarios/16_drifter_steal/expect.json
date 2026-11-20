@@ -1,0 +1,50 @@
+{
+  "req": "F1 Gio Lac: Moi mang >= 5 va <= 15 m -> chase; cham 1.2 m -> cuop min(3, mang), flee 240 tick -> removed; khong mat lua",
+  "why": "5 -> 1.2 m voi 7/60 m/tick: 33 tick; flee tu tick 33 -> removed tick 273",
+  "ticks": 300,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "drifters.0.state",
+      "equals": "chase"
+    },
+    {
+      "check": "event",
+      "name": "drifter_steal",
+      "data": {
+        "drifter_id": "D1",
+        "amount": 3,
+        "carried": 3
+      },
+      "tick": 33
+    },
+    {
+      "check": "snapshot",
+      "tick": 270,
+      "path": "drifters.0.state",
+      "equals": "flee"
+    },
+    {
+      "check": "snapshot",
+      "tick": 280,
+      "path": "drifters.0.state",
+      "equals": "removed"
+    },
+    {
+      "check": "snapshot",
+      "tick": 280,
+      "path": "drifters.0.stolen",
+      "equals": 3
+    },
+    {
+      "check": "snapshot",
+      "tick": 280,
+      "path": "player.flames",
+      "equals": 3
+    }
+  ],
+  "seed": 1,
+  "night": 2,
+  "snapshot_every": 10
+}

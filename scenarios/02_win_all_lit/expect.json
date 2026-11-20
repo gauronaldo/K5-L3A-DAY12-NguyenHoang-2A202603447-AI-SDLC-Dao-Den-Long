@@ -1,5 +1,6 @@
 {
-  "req": "R6 thang khi thap het den, R7 diem thuong khi thang",
+  "req": "S10 thang khi moi den sang, thuong floor(giay con lai) x2 + 50 x lua",
+  "why": "10 + 100 + floor(99.983) x 2 + 3 x 50 = 458",
   "ticks": 600,
   "expect": [
     {
@@ -15,9 +16,10 @@
       "check": "end",
       "state": "won",
       "ticks": 1,
-      "score": 349
+      "score": 458
     }
   ],
-  "snapshot_every": 10,
-  "seed": 1
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
 }

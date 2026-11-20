@@ -1,5 +1,6 @@
 {
-  "req": "R5 Bong Muc so den: khong vao safe_radius",
+  "req": "S5 Bong Muc khong vao vung 6 m cua den dang sang",
+  "why": "Moi dung o chan den L1 da sang; 3 shade duoi theo bi chan o mep 6 m",
   "ticks": 1200,
   "expect": [
     {
@@ -8,7 +9,7 @@
     },
     {
       "check": "min_shade_lantern_dist",
-      "min": 5.0
+      "min": 6.0
     },
     {
       "check": "end",
@@ -16,6 +17,7 @@
       "ticks": 1200
     }
   ],
-  "snapshot_every": 1,
-  "seed": 1
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 1
 }

@@ -1,7 +1,14 @@
 {
   "random_motes": false,
   "random_shades": false,
+  "random_drifters": false,
+  "wind_enabled": false,
   "motes": [
+    [
+      0,
+      0,
+      2
+    ],
     [
       0,
       0,
@@ -26,6 +33,26 @@
       0,
       0,
       7
+    ],
+    [
+      0,
+      0,
+      8
+    ],
+    [
+      0,
+      0,
+      9
+    ],
+    [
+      0,
+      0,
+      10
+    ],
+    [
+      0,
+      0,
+      11
     ]
   ],
   "lanterns": [
@@ -34,9 +61,8 @@
       "pos": [
         0,
         0,
-        10
-      ],
-      "deposited": 0
+        14
+      ]
     }
   ]
 }

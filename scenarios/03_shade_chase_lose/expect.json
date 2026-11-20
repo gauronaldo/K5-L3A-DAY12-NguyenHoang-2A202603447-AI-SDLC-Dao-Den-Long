@@ -1,7 +1,14 @@
 {
-  "req": "R5 Bong Muc duoi theo, cham mat HP, R6 thua khi het HP",
+  "req": "S7 Bong Muc phat hien trong 12 m, duoi 4 m/s, cham <= 1 m -> mat lua; S10 het lua -> thua",
+  "why": "cach 3 m, can di 2 m voi 4/60 m/tick = 30 tick",
   "ticks": 600,
   "expect": [
+    {
+      "check": "snapshot",
+      "tick": 10,
+      "path": "shades.0.state",
+      "equals": "chase"
+    },
     {
       "check": "event",
       "name": "player_hit",
@@ -10,7 +17,7 @@
         "flames": 0,
         "dropped": 0
       },
-      "tick": 35
+      "tick": 30
     },
     {
       "check": "event",
@@ -19,20 +26,15 @@
         "result": "lost",
         "reason": "no_flames"
       },
-      "tick": 35
-    },
-    {
-      "check": "snapshot",
-      "tick": 10,
-      "path": "shades.0.state",
-      "equals": "chase"
+      "tick": 30
     },
     {
       "check": "end",
       "state": "lost",
-      "ticks": 35
+      "ticks": 30
     }
   ],
-  "snapshot_every": 10,
-  "seed": 1
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
 }

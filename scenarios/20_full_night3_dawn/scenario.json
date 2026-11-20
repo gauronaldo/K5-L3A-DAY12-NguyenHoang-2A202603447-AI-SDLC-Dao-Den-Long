@@ -1,0 +1,16 @@
+{
+  "player": {
+    "pos": [
+      20,
+      0,
+      -35
+    ]
+  },
+  "lanterns": [
+    {
+      "id": "L6",
+      "lit": true
+    }
+  ],
+  "wind_enabled": false
+}

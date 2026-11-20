@@ -1,0 +1,86 @@
+{
+  "req": "S3/S7/S11 Dem 1 mac dinh: 5 den chuan, 20 dom dom, +1 o tick 240, 2 Bong Muc o tick 300, S3 o tick 780",
+  "why": "lich sinh 300 + 480k; dung yen o goc nen khong nhat (diem gan nhat cach 12 m)",
+  "ticks": 1000,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "lanterns.length",
+      "equals": 5
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "lanterns.1.pos",
+      "equals": [
+        23.8,
+        0.0,
+        7.7
+      ]
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "motes_active",
+      "equals": 20
+    },
+    {
+      "check": "snapshot",
+      "tick": 240,
+      "path": "motes_active",
+      "equals": 21
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "player.flames",
+      "equals": 3
+    },
+    {
+      "check": "snapshot",
+      "tick": 0,
+      "path": "time_left_s",
+      "equals": 300.0
+    },
+    {
+      "check": "event",
+      "name": "night_start",
+      "data": {
+        "night": 1
+      },
+      "tick": 1
+    },
+    {
+      "check": "event",
+      "name": "shade_spawned",
+      "data": {
+        "id": "S2"
+      },
+      "tick": 300
+    },
+    {
+      "check": "event",
+      "name": "shade_spawned",
+      "data": {
+        "id": "S3"
+      },
+      "tick": 780
+    },
+    {
+      "check": "snapshot",
+      "tick": 310,
+      "path": "shades.0.state",
+      "equals": "spawning"
+    },
+    {
+      "check": "snapshot",
+      "tick": 370,
+      "path": "shades.0.state",
+      "equals": "wander"
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

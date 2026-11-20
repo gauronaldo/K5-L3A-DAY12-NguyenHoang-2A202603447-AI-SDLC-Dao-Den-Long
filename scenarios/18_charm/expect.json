@@ -1,0 +1,58 @@
+{
+  "req": "F2 Bua Gio: nhat -> charm_picked 600; chay 7.2 m/s; luot khong hoi chieu; xuat hien lai sau 2700 tick",
+  "why": "tick 1 di 0.1 (nhat sau buoc di chuyen), tick 2..60 di 0.12 -> z = 7.18; luot o tick 71 va 91 (khong co bua thi lan 2 bi hoi chieu)",
+  "ticks": 2760,
+  "expect": [
+    {
+      "check": "event",
+      "name": "charm_picked",
+      "data": {
+        "charm_id": "C1",
+        "charm_ticks": 600
+      },
+      "tick": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 60,
+      "path": "player.pos",
+      "equals": [
+        0.0,
+        0.0,
+        7.18
+      ]
+    },
+    {
+      "check": "snapshot",
+      "tick": 60,
+      "path": "player.charm_s",
+      "equals": 9.017
+    },
+    {
+      "check": "event_count",
+      "name": "dash",
+      "count": 2
+    },
+    {
+      "check": "snapshot",
+      "tick": 60,
+      "path": "charms.0.available",
+      "equals": false
+    },
+    {
+      "check": "snapshot",
+      "tick": 2700,
+      "path": "charms.0.available",
+      "equals": false
+    },
+    {
+      "check": "snapshot",
+      "tick": 2710,
+      "path": "charms.0.available",
+      "equals": true
+    }
+  ],
+  "seed": 1,
+  "night": 2,
+  "snapshot_every": 10
+}

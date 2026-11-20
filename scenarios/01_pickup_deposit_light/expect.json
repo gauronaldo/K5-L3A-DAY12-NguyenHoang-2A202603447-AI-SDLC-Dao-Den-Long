@@ -1,21 +1,30 @@
 {
-  "req": "R3 nhat dom dom, R4 gui sang vao den, R4 thap den, R7 diem",
-  "ticks": 120,
+  "req": "S3/S4 nhat 10 dom dom, nap vao den (cost 10, ban kinh 2 m), thap den, diem +10/nap +100/den",
+  "why": "10 mote o z=2..11 nhat o tick 10..100; toi z=12.0 o tick 120, cach den 2.0 m -> nap o tick 121",
+  "ticks": 150,
   "expect": [
     {
       "check": "event_count",
       "name": "mote_picked",
-      "count": 5
+      "count": 10
+    },
+    {
+      "check": "event",
+      "name": "mote_picked",
+      "data": {
+        "carried": 1
+      },
+      "tick": 10
     },
     {
       "check": "event",
       "name": "deposit",
       "data": {
         "lantern_id": "L1",
-        "amount": 5,
-        "deposited": 5
+        "amount": 10,
+        "deposited": 10
       },
-      "tick": 81
+      "tick": 121
     },
     {
       "check": "event",
@@ -23,15 +32,16 @@
       "data": {
         "lantern_id": "L1"
       },
-      "tick": 81
+      "tick": 121
     },
     {
       "check": "end",
       "state": "playing",
-      "score": 150,
-      "ticks": 120
+      "score": 200,
+      "ticks": 150
     }
   ],
-  "snapshot_every": 10,
-  "seed": 1
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
 }

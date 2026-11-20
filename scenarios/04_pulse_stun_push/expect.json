@@ -1,5 +1,6 @@
 {
-  "req": "R5 xung sang day lui va lam choang, ton sang",
+  "req": "S6 Toa Sang: ton 3, ban kinh 5 m 3D, choang 120 tick, day 4 m trong 15 tick, +5",
+  "why": "S1 cach tam (0,0.8,0) 4.005 m; FAR 20 m; x: 4 -> 8 o tick 15; het choang tick 121 -> chase (cach 8 m)",
   "ticks": 200,
   "expect": [
     {
@@ -14,13 +15,7 @@
     },
     {
       "check": "snapshot",
-      "tick": 10,
-      "path": "shades.0.state",
-      "equals": "stunned"
-    },
-    {
-      "check": "snapshot",
-      "tick": 10,
+      "tick": 20,
       "path": "shades.0.pos",
       "equals": [
         8.0,
@@ -30,13 +25,25 @@
     },
     {
       "check": "snapshot",
-      "tick": 10,
+      "tick": 20,
       "path": "player.carried",
       "equals": 2
     },
     {
       "check": "snapshot",
-      "tick": 190,
+      "tick": 20,
+      "path": "player.pulse_cd_s",
+      "equals": 2.683
+    },
+    {
+      "check": "snapshot",
+      "tick": 120,
+      "path": "shades.0.state",
+      "equals": "stunned"
+    },
+    {
+      "check": "snapshot",
+      "tick": 130,
       "path": "shades.0.state",
       "equals": "chase"
     },
@@ -50,6 +57,7 @@
       "score": 5
     }
   ],
-  "snapshot_every": 10,
-  "seed": 1
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
 }

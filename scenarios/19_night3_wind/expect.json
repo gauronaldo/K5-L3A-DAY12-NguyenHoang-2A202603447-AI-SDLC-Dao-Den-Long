@@ -1,0 +1,36 @@
+{
+  "req": "S11 Dem 3: gio moi 30 s, keo dai 5 s, day 2 m/s",
+  "why": "gio o sim_tick 1800..2099 -> dich 2 x 5 = 10 m",
+  "ticks": 2200,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 1790,
+      "path": "wind.active",
+      "equals": false
+    },
+    {
+      "check": "snapshot",
+      "tick": 1850,
+      "path": "wind.active",
+      "equals": true
+    },
+    {
+      "check": "snapshot",
+      "tick": 2110,
+      "path": "wind.active",
+      "equals": false
+    },
+    {
+      "check": "player_moved",
+      "ticks": [
+        1790,
+        2110
+      ],
+      "dist": 10.0
+    }
+  ],
+  "seed": 1,
+  "night": 3,
+  "snapshot_every": 10
+}

@@ -1,0 +1,36 @@
+{
+  "req": "S11 Dem 2: buc nhay (20,0,18) ban len 14 m/s, 24 m/s ve tam dao B, bay ~1.4 s, dap trong dao B",
+  "why": "semi-implicit: cham dat sau 83 tick bay -> tick 84; quang 33.2 m -> cach tam B ~19.9 m",
+  "ticks": 120,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 40,
+      "path": "player.grounded",
+      "equals": false
+    },
+    {
+      "check": "snapshot",
+      "tick": 90,
+      "path": "player.grounded",
+      "equals": true
+    },
+    {
+      "check": "player_near",
+      "tick": 90,
+      "point": [
+        70,
+        0,
+        0
+      ],
+      "max": 28.0
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    }
+  ],
+  "seed": 1,
+  "night": 2,
+  "snapshot_every": 10
+}

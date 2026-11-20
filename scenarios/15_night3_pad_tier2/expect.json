@@ -1,0 +1,26 @@
+{
+  "req": "S11 Dem 3: buc nhay (0,3,13) -> 12 m/s len, 8 m/s huong -Z, dap tang 2 (Y=6)",
+  "why": "bay ~0.85 s, dap o z ~6.2 (trong dia r=8)",
+  "ticks": 90,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 80,
+      "path": "player.pos.1",
+      "equals": 6.0
+    },
+    {
+      "check": "player_near",
+      "tick": 80,
+      "point": [
+        0,
+        0,
+        0
+      ],
+      "max": 8.0
+    }
+  ],
+  "seed": 1,
+  "night": 3,
+  "snapshot_every": 10
+}

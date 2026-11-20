@@ -59,13 +59,28 @@ def check(lines, exp):
             return False, "no snapshot at tick %d" % exp["tick"]
         got = get_path(snaps[exp["tick"]], exp["path"])
         return got == exp["equals"], "got %r" % (got,)
-    if c == "min_shade_lantern_dist":
-        m = math.inf
-        for s in snaps.values():
+    if c == "min_shade_lantern_dist":   # only lit lanterns protect (Ticket-02)
+        m, n = math.inf, 0
+        for t, s in snaps.items():
+            if t < exp.get("from_tick", 0):
+                continue
+            n += 1
             for sh in s["shades"]:
                 for la in s["lanterns"]:
-                    m = min(m, math.hypot(sh["pos"][0] - la["pos"][0], sh["pos"][2] - la["pos"][2]))
-        return m >= exp["min"], "min=%.3f over %d snapshots" % (m, len(snaps))
+                    if la["lit"]:
+                        m = min(m, math.hypot(sh["pos"][0] - la["pos"][0], sh["pos"][2] - la["pos"][2]))
+        return m >= exp["min"], "min=%.3f over %d snapshots" % (m, n)
+    if c == "same":
+        a, b = (get_path(snaps[t], exp["path"]) for t in exp["ticks"])
+        return a == b, "%r vs %r" % (a, b)
+    if c == "player_near":
+        p = snaps[exp["tick"]]["player"]["pos"]
+        d = math.hypot(p[0] - exp["point"][0], p[2] - exp["point"][2])
+        return d <= exp["max"], "xz distance %.3f" % d
+    if c == "player_moved":
+        a, b = (snaps[t]["player"]["pos"] for t in exp["ticks"])
+        d = math.hypot(a[0] - b[0], a[2] - b[2])
+        return abs(d - exp["dist"]) <= exp.get("tol", 0.05), "moved %.3f" % d
     if c == "end":
         bad = {k: end.get(k) for k in ("state", "score", "ticks") if k in exp and end.get(k) != exp[k]}
         return not bad, "end=%s" % json.dumps(end)
@@ -73,7 +88,7 @@ def check(lines, exp):
 
 
 def run_headless(sdir, meta, out):
-    cmd = HEADLESS + ["--seed", str(meta["seed"]), "--night", "1", "--ticks", str(meta["ticks"]),
+    cmd = HEADLESS + ["--seed", str(meta["seed"]), "--night", str(meta.get("night", 1)), "--ticks", str(meta["ticks"]),
                       "--out", out, "--snapshot-every", str(meta["snapshot_every"])]
     for fn, flag in (("scenario.json", "--scenario"), ("inputs.json", "--inputs")):
         if os.path.exists(os.path.join(sdir, fn)):
@@ -89,7 +104,7 @@ def run_headless(sdir, meta, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
-    ap.add_argument("--phase", default="phase-1")
+    ap.add_argument("--phase", default="phase-2")
     a = ap.parse_args()
 
     ok_unit, n_unit, n_bad = unit_tests()
@@ -112,6 +127,9 @@ def main():
         lines = [json.loads(l) for l in data_a.splitlines() if l.strip()]
         results = [(e, *check(lines, e)) for e in meta["expect"]]
         det = data_a == data_b
+        if "max_wall_s" in meta:
+            results.append(({"check": "wall_time", "max_s": meta["max_wall_s"]}, dt <= meta["max_wall_s"],
+                             "%.2fs" % dt))
         ok = rc == 0 and rc_b == 0 and det and all(r[1] for r in results)
         all_ok &= ok
         rows.append((name, meta, ok, det, dt, results, hashlib.sha256(data_a.encode()).hexdigest()[:12], lines[-1]))

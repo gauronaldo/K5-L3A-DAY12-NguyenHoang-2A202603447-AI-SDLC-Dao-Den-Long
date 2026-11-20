@@ -1,0 +1,53 @@
+{
+  "req": "S2 Luot 14 m/s x 12 tick theo huong mat, hoi 90 tick tinh tu luc bat dau; nhan trong luc hoi bi bo qua",
+  "why": "z = 12 x 14/60 = 2.8; cd o tick 20 = (90-19)/60 = 1.183; nhan o tick 50 bi bo qua, tick 100 duoc",
+  "ticks": 130,
+  "expect": [
+    {
+      "check": "event",
+      "name": "dash",
+      "data": {},
+      "tick": 1
+    },
+    {
+      "check": "event",
+      "name": "dash",
+      "data": {},
+      "tick": 101
+    },
+    {
+      "check": "event_count",
+      "name": "dash",
+      "count": 2
+    },
+    {
+      "check": "snapshot",
+      "tick": 20,
+      "path": "player.pos",
+      "equals": [
+        0.0,
+        0.0,
+        2.8
+      ]
+    },
+    {
+      "check": "snapshot",
+      "tick": 20,
+      "path": "player.dash_cd_s",
+      "equals": 1.183
+    },
+    {
+      "check": "snapshot",
+      "tick": 120,
+      "path": "player.pos",
+      "equals": [
+        0.0,
+        0.0,
+        5.6
+      ]
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

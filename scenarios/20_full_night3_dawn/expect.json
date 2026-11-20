@@ -1,0 +1,40 @@
+{
+  "req": "C2 ca Dem 3 (21600 tick) day du Bong Muc (toi da 10) va Gio Lac; <= 30 s",
+  "why": "dung o chan den L6 da sang nen an toan toi binh minh; tat gio vi gio day Moi ra khoi vung an toan (gio da co scenario 19)",
+  "ticks": 21600,
+  "expect": [
+    {
+      "check": "event_count",
+      "name": "shade_spawned",
+      "count": 10
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    },
+    {
+      "check": "snapshot",
+      "tick": 2410,
+      "path": "drifters.length",
+      "equals": 2
+    },
+    {
+      "check": "event",
+      "name": "game_over",
+      "data": {
+        "result": "lost",
+        "reason": "dawn"
+      },
+      "tick": 21600
+    },
+    {
+      "check": "end",
+      "state": "lost",
+      "ticks": 21600
+    }
+  ],
+  "seed": 1,
+  "night": 3,
+  "snapshot_every": 10,
+  "max_wall_s": 30
+}

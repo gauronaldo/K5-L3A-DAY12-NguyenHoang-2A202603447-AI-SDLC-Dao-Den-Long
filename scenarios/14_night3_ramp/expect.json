@@ -1,0 +1,22 @@
+{
+  "req": "S11 Dem 3: doc 30 do tu r=30 (Y=0) len r=24 (Y=3) -> tang 1",
+  "why": "chan doc r=29.5, di 6 m/s vao tam 2 s",
+  "ticks": 120,
+  "expect": [
+    {
+      "check": "snapshot",
+      "tick": 120,
+      "path": "player.pos.1",
+      "equals": 3.0
+    },
+    {
+      "check": "snapshot",
+      "tick": 120,
+      "path": "player.grounded",
+      "equals": true
+    }
+  ],
+  "seed": 1,
+  "night": 3,
+  "snapshot_every": 10
+}

@@ -1,0 +1,54 @@
+{
+  "req": "S9 roi khoi dao (Y < -10): -1 lua, mat het dom dom (lost), cho 60 tick, hoi sinh o diem xuat phat, bat tu",
+  "why": "ra khoi mep o tick 11; y = -n(n+1)/360 < -10 khi n = 60 -> tick 70; hoi sinh tick 130",
+  "ticks": 135,
+  "expect": [
+    {
+      "check": "event",
+      "name": "player_hit",
+      "data": {
+        "by": "fall",
+        "flames": 2,
+        "dropped": 0,
+        "lost": 3
+      },
+      "tick": 70
+    },
+    {
+      "check": "event_count",
+      "name": "player_hit",
+      "count": 1
+    },
+    {
+      "check": "snapshot",
+      "tick": 120,
+      "path": "player.carried",
+      "equals": 0
+    },
+    {
+      "check": "snapshot",
+      "tick": 130,
+      "path": "player.pos",
+      "equals": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "check": "snapshot",
+      "tick": 130,
+      "path": "player.invuln",
+      "equals": true
+    },
+    {
+      "check": "snapshot",
+      "tick": 130,
+      "path": "player.flames",
+      "equals": 2
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 10
+}

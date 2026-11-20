@@ -1,18 +1,21 @@
 {
   "random_motes": false,
   "random_shades": false,
+  "random_drifters": false,
+  "wind_enabled": false,
   "player": {
     "carried": 1
   },
+  "time_left_s": 100,
   "lanterns": [
     {
       "id": "L1",
       "pos": [
         0,
         0,
-        2
+        1
       ],
-      "deposited": 4
+      "deposited": 9
     },
     {
       "id": "L2",
@@ -30,6 +33,5 @@
       "id": "L5",
       "lit": true
     }
-  ],
-  "time_left_s": 100
+  ]
 }

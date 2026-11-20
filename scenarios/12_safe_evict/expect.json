@@ -1,0 +1,27 @@
+{
+  "req": "S5 Bong Muc dang trong vung khi den vua thap bi day ra mep trong <= 30 tick, khong gay sat thuong",
+  "why": "den L1 (0,0,1) thap o tick 1; S1 cach den 2 m; tu tick 31 phai >= 6 m",
+  "ticks": 200,
+  "expect": [
+    {
+      "check": "event",
+      "name": "lantern_lit",
+      "data": {
+        "lantern_id": "L1"
+      },
+      "tick": 1
+    },
+    {
+      "check": "min_shade_lantern_dist",
+      "min": 6.0,
+      "from_tick": 31
+    },
+    {
+      "check": "no_event",
+      "name": "player_hit"
+    }
+  ],
+  "seed": 1,
+  "night": 1,
+  "snapshot_every": 1
+}
