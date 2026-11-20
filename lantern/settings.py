@@ -5,6 +5,7 @@ import os
 DEFAULTS = {
     "volume": 0.8,             # 0..1
     "mouse_sensitivity": 1.0,  # 0.2..3
+    "colorblind": False,       # Ticket-03: "Bảng màu dễ phân biệt"
 }
 
 

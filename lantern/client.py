@@ -35,9 +35,16 @@ FONTS = [
     "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial Unicode.ttf",
     "C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/segoeui.ttf",
 ]
+SYMBOL_FONTS = [   # fonts that really contain U+26A0 (Arial does not)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf",
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf", "/System/Library/Fonts/Apple Symbols.ttf",
+    "/Library/Fonts/Arial Unicode.ttf", "C:/Windows/Fonts/seguisym.ttf", "C:/Windows/Fonts/seguiemj.ttf",
+]
 TEXT = PAL["ui_text"]
 GOLD = PAL["gold"]
 DANGER = PAL["ui_danger"]
+CB_RIM = C.hex_rgb("#00B3FF")      # Ticket-03 colour-blind palette
+CB_DANGER = C.hex_rgb("#FFFFFF")
 
 
 def P(v, lift=0.0):
@@ -85,6 +92,8 @@ class Game(ShowBase):
     def __init__(self, seed=None, autoplay=False):
         ShowBase.__init__(self)
         self.disableMouse()
+        self.camLens.setFov(70)   # wide enough to keep lantern tops and fuel bars in view
+        self.camLens.setNear(0.3)
         self.setBackgroundColor(*PAL["sky"])
         self.render.setShaderAuto()
         self.fixed_seed = seed
@@ -97,6 +106,13 @@ class Game(ShowBase):
                 font = self.loader.loadFont(Filename.fromOsSpecific(f).getFullpath())
                 if font and font.isValid():
                     self.font = font
+                    break
+        self.sym_font = None
+        for f in SYMBOL_FONTS:
+            if os.path.exists(f):
+                font = self.loader.loadFont(Filename.fromOsSpecific(f).getFullpath())
+                if font and font.isValid():
+                    self.sym_font = font
                     break
         self.sim = None
         self.world_np = None
@@ -133,6 +149,33 @@ class Game(ShowBase):
 
     def set_text(self, node, s):
         node.setText(self.tr(s))
+
+    def cb(self):
+        return bool(self.settings.get("colorblind"))
+
+    def danger(self):
+        return CB_DANGER if self.cb() else DANGER
+
+    def warn(self, s):
+        """Text part of a danger message (the ⚠ icon is a separate node, see _place_icon)."""
+        return s
+
+    def _icon(self):
+        kw = {"font": self.sym_font} if self.sym_font else {}
+        return OnscreenText(text="⚠" if self.sym_font else "(!)", mayChange=True, fg=CB_DANGER,
+                            shadow=(0, 0, 0, 0.8), scale=0.07, **kw)
+
+    def _place_icon(self, icon, node):
+        """Colour-blind mode: show ⚠ to the left of a non-empty danger text."""
+        txt = node.getText()
+        if not self.cb() or not txt or node.isHidden():
+            icon.hide()
+            return
+        width = node.textNode.getWidth() * node.getScale()[0]
+        x, y = node.getPos()
+        icon.reparentTo(node.getParent())
+        icon.setPos(x - width / 2 - 0.06, y)
+        icon.show()
 
     def _btn(self, parent, label, cmd, pos, scale=0.065, width=9):
         return DirectButton(parent=parent, text=self.tr(label), command=cmd, pos=pos, scale=scale,
@@ -310,6 +353,20 @@ class Game(ShowBase):
             core.setZ(3.3)
             core.setColor(*PAL["lantern_core"])
             core.setLightOff()
+            notch = meshes.box(-0.08, 0.08, -0.7, -0.6, -0.35, 0.3)   # "torn paper" mark for colour-blind mode
+            notch.reparentTo(body)
+            notch.setColor(0.05, 0.04, 0.06, 1)
+            bar = root.attachNewNode("fuel-bar")
+            bar.setZ(4.6)
+            bar.setBillboardPointEye()
+            bg = meshes.box(-0.8, 0.8, -0.02, 0.02, -0.09, 0.09)
+            bg.reparentTo(bar)
+            bg.setColor(0.08, 0.08, 0.12, 1)
+            fill = meshes.box(0.0, 1.6, -0.04, 0.0, -0.07, 0.07)
+            fill.reparentTo(bar)
+            fill.setX(-0.8)
+            fill.setColor(*GOLD)
+            bar.setLightOff()
             safe = meshes.ring(T["safe_radius"] - 0.15, T["safe_radius"], 72)
             safe.reparentTo(root)
             safe.setZ(0.04)
@@ -324,7 +381,7 @@ class Game(ShowBase):
             plnp.setZ(3.3)
             self.lan_lights.append(plnp)
             self.lan_nodes[lan["id"]] = {"root": root, "body": body, "core": core, "safe": safe, "light": plnp,
-                                         "state": None}
+                                         "state": None, "bar": bar, "fill": fill, "notch": notch}
 
         self.player_np = self.dyn.attachNewNode("may")
         body = meshes.cone(0.5, 1.25, 16)
@@ -432,8 +489,10 @@ class Game(ShowBase):
         self.h_right = self.text("", parent=tr, pos=(-0.06, -0.1), scale=0.06, fg=GOLD, align=TextNode.ARight)
         self.h_prompt = self.text("", parent=self.aspect2d, pos=(0, -0.55), scale=0.06, fg=TEXT)
         self.h_warn = self.text("", parent=self.aspect2d, pos=(0, 0.62), scale=0.06, fg=DANGER)
+        self.h_warn_icon = self._icon()
+        self.h_timer_icon = self._icon()
         self.h_cells = []
-        for i in range(10):
+        for i in range(T["capacity_max"]):
             cell = DirectFrame(parent=self.a2dBottomCenter, frameColor=(0.15, 0.15, 0.22, 0.85),
                                frameSize=(-0.032, 0.032, -0.032, 0.032), pos=(-0.405 + i * 0.09, 0, 0.12))
             self.h_cells.append(cell)
@@ -458,25 +517,36 @@ class Game(ShowBase):
     def show_hud(self, on):
         for n in self.hud_nodes:
             n.show() if on else n.hide()
+        if not on:
+            self.h_warn_icon.hide()
+            self.h_timer_icon.hide()
 
     def _hud(self, now):
         sim, pl = self.sim, self.sim.player
+        self.h_flames.setFg(self.danger())
         self.set_text(self.h_flames, "♥ " * pl["flames"] if self.font else "Lua: %d" % pl["flames"])
         t = max(0.0, sim.time_left_s)
         secs = int(math.ceil(t - 1e-9))
         self.set_text(self.h_timer, "%02d:%02d" % (secs // 60, secs % 60))
         if t <= 30:
-            self.h_timer.setFg(DANGER)
+            self.h_timer.setFg(self.danger())
+            self._place_icon(self.h_timer_icon, self.h_timer)
             self.h_timer.setAlphaScale(1.0 if int(now * 3) % 2 == 0 else 0.25)
         else:
             self.h_timer.setFg(TEXT)
             self.h_timer.setAlphaScale(1.0)
+            self.h_timer_icon.hide()
         self.set_text(self.h_right, "Đèn %d/%d\nĐiểm %d" % (sim.lit_count, len(sim.lanterns),
                                                            self.campaign.total + sim.score))
+        cap = sim.capacity()
         for i, cell in enumerate(self.h_cells):
-            on = i < min(pl["carried"], 10)
+            if i >= cap:
+                cell.hide()
+                continue
+            cell.show()
+            cell.setPos((i - (cap - 1) / 2.0) * 0.075, 0, 0.12)
             g = PAL["mote_glow"]
-            cell["frameColor"] = (g[0], g[1], g[2], 1) if on else (0.15, 0.15, 0.22, 0.85)
+            cell["frameColor"] = (g[0], g[1], g[2], 1) if i < pl["carried"] else (0.15, 0.15, 0.22, 0.85)
         self.set_text(self.h_carry, "Đom đóm %d/%d" % (pl["carried"], sim.capacity()))
         for key, total, cur in (("dash", C.DASH_CD_TICKS, pl["dash_cd"]), ("pulse", C.PULSE_CD_TICKS, pl["pulse_cd"])):
             box, fill, _, sec = self.h_cd[key]
@@ -484,13 +554,23 @@ class Game(ShowBase):
             fill["frameSize"] = (-0.09, 0.09, -0.09, -0.09 + 0.18 * frac)
             need = key == "pulse" and pl["carried"] < T["pulse_cost"]
             self.set_text(sec, "%.1f" % (cur / 60.0) if frac > 0 else ("×" if need else ""))
-        near = [l for l in sim.lanterns if not l["lit"] and xz_dist(l["pos"], pl["pos"]) <= T["interact_radius"]]
+        near = [l for l in sim.lanterns if sim._accepts(l) and xz_dist(l["pos"], pl["pos"]) <= T["interact_radius"]]
         if near and sim.alive():
             lan = min(near, key=lambda l: xz_dist(l["pos"], pl["pos"]))
-            self.set_text(self.h_prompt, "E — Nạp ánh sáng (%d/%d)" % (lan["deposited"], T["lantern_cost"]))
+            if lan["lit"]:
+                self.set_text(self.h_prompt, "E — Châm dầu (%d/100)" % (lan["fuel_u"] // C.FUEL_U))
+            else:
+                cost = T["relight_cost"] if lan["ever_lit"] else T["lantern_cost"]
+                self.set_text(self.h_prompt, "E — Nạp ánh sáng (%d/%d)" % (lan["deposited"], cost))
         else:
             self.set_text(self.h_prompt, "")
-        self.set_text(self.h_warn, "Gió sắp thổi!" if sim.wind["warn"] else ("Gió mạnh!" if sim.wind["active"] else ""))
+        low = [l for l in sim.lanterns if l["lit"] and l["fuel_u"] < C.LOW_FUEL_U]
+        msg = "Gió sắp thổi!" if sim.wind["warn"] else ("Gió mạnh!" if sim.wind["active"] else "")
+        if not msg and low:
+            msg = "Đèn %s sắp hết dầu!" % ", ".join(l["id"] for l in low)
+        self.h_warn.setFg(self.danger())
+        self.set_text(self.h_warn, self.warn(msg))
+        self._place_icon(self.h_warn_icon, self.h_warn)
         self._offscreen_arrow()
 
     def _offscreen_arrow(self):
@@ -559,6 +639,7 @@ class Game(ShowBase):
         p.sens = DirectSlider(parent=p, range=(0.2, 3.0), value=self.settings["mouse_sensitivity"], pageSize=0.2,
                               scale=0.4, pos=(0.1, 0, 0.1), command=self._on_settings)
         p.vals = self.text("", parent=p, pos=(0, -0.1), scale=0.05)
+        p.cb = self._btn(p, "", self._toggle_cb, (0, 0, -0.27), width=14)
         self._btn(p, "Lưu và quay lại", self._settings_back, (0, 0, -0.45))
         self._on_settings()
 
@@ -571,6 +652,12 @@ class Game(ShowBase):
         self.apply_volume()
         self.set_text(p.vals, "Âm lượng %d%% · Độ nhạy %.2f" % (self.settings["volume"] * 100,
                                                                 self.settings["mouse_sensitivity"]))
+        if hasattr(p, "cb"):
+            p.cb["text"] = self.tr("Bảng màu dễ phân biệt: %s" % ("BẬT" if self.cb() else "TẮT"))
+
+    def _toggle_cb(self):
+        self.settings["colorblind"] = not self.cb()
+        self._on_settings()
 
     def _settings_back(self):
         self.settings.save()
@@ -782,6 +869,10 @@ class Game(ShowBase):
             root.setPos(*P(s["pos"], 0.12 * math.sin(now * 3 + len(s["id"]))))
             root.lookAt(*P(sim.player["pos"], s["pos"][1]))
             st = s["state"]
+            rim_c = CB_RIM if self.cb() else PAL["shade_rim"]
+            rim.setColor(*rim_c)
+            for e in eyes:
+                e.setColor(*rim_c)
             blob.setColor(*(PAL["shade_stunned"] if st == "stunned" else PAL["shade_body"]))
             if st == "spawning":
                 root.setScale(0.35 + 0.65 * (1 - s["t"] / float(C.SHADE_SPAWNING_TICKS)))
@@ -847,6 +938,25 @@ class Game(ShowBase):
                     node["core"].hide()
                     node["safe"].hide()
                     self.render.clearLight(node["light"])
+        blink_on = int(now * 2) % 2 == 0          # 1 Hz: on 0.5 s, off 0.5 s
+        for lan in sim.lanterns:
+            node = self.lan_nodes[lan["id"]]
+            low = lan["lit"] and lan["fuel_u"] < C.LOW_FUEL_U
+            if lan["lit"]:
+                node["bar"].show()
+                node["fill"].setSx(max(0.001, lan["fuel_u"] / float(C.FUEL_MAX_U)))
+                node["fill"].setColor(*(self.danger() if low else GOLD))
+            else:
+                node["bar"].hide()
+            alpha = 0.25 if (low and not blink_on) else 1.0
+            node["bar"].setAlphaScale(alpha)
+            node["body"].setAlphaScale(alpha)
+            if alpha < 1:
+                node["body"].setTransparency(TransparencyAttrib.MAlpha)
+            node["safe"].show() if sim._safe(lan) else node["safe"].hide()   # fuel < 30: no safe zone
+            squash = self.cb() and not lan["lit"]
+            node["body"].setScale(1, 1, 1.15 * (0.8 if squash else 1.0))
+            node["notch"].show() if squash else node["notch"].hide()
         if changed:
             self.set_ambient(sim.lit_count, len(sim.lanterns))
         self._sync_entities(now)
@@ -897,8 +1007,8 @@ class Game(ShowBase):
         th = math.radians(self.cam_yaw)
         fxc, fzc = math.sin(th), math.cos(th)
         px, py, pz = P(pl["pos"])
-        self.camera.setPos(px - fxc * 13.0, py - fzc * 13.0, pz + 7.5)
-        self.camera.lookAt(px, py, pz + 1.3)
+        self.camera.setPos(px - fxc * 12.0, py - fzc * 12.0, pz + 6.0)
+        self.camera.lookAt(px, py, pz + 2.0)
         if self.mode in ("play", "paused"):
             self._hud(now)
 
